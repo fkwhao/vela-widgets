@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import AppIcon from "./AppIcon.vue";
+import WidgetThemePreview from "./WidgetThemePreview.vue";
+import VelaSelect from "./VelaSelect.vue";
+import VelaSlider from "./VelaSlider.vue";
 import { exitVela, isNativeApp } from "../lib/backend";
 import {
   setAccentColor,
@@ -44,7 +47,7 @@ const navGroups = [
   {
     label: "常规",
     items: [
-      { id: "appearance", label: "外观", icon: "sun" },
+      { id: "appearance", label: "全局设置", icon: "sun" },
       { id: "behavior", label: "组件行为", icon: "sliders" },
       { id: "startup", label: "启动", icon: "power" },
       { id: "data", label: "数据与关于", icon: "database" },
@@ -52,16 +55,19 @@ const navGroups = [
   },
 ];
 
-const widgetDescriptions: Record<WidgetKind, string> = {
-  calendar: "日期与月历，打开桌面即可查看今天。",
-  todo: "轻量记录，随手勾选和整理下一步。",
-};
+const accentColors = [
+  "#3b67b8",
+  "#805eb2",
+  "#c14289",
+  "#d4484d",
+  "#dc812e",
+  "#c39a27",
+  "#399466",
+  "#858585",
+];
 
 const enabledCount = computed(
   () => Object.values(snapshot.value.settings.widgets).filter((widget) => widget.enabled).length,
-);
-const openTodoCount = computed(
-  () => snapshot.value.todos.filter((todo) => !todo.completed).length,
 );
 const pageTitle = computed(() => {
   const item = navGroups.flatMap((group) => group.items).find((entry) => entry.id === activePage.value);
@@ -126,7 +132,7 @@ async function toggleWidget(kind: WidgetKind): Promise<void> {
       ? "组件已关闭"
       : nativeApp
         ? "组件已添加到桌面"
-        : "预览状态已更新；运行 npm start 才会创建桌面窗口",
+        : "预览已开启",
   );
 }
 
@@ -139,8 +145,12 @@ function onAccentChange(event: Event): void {
   void run(() => setAccentColor(color), "强调色已更新");
 }
 
-function onTransparencyInput(event: Event): void {
-  transparencyDraft.value = Number((event.target as HTMLInputElement).value);
+function chooseAccentColor(color: string): void {
+  void run(() => setAccentColor(color), "强调色已更新");
+}
+
+function onTransparencyInput(value: number): void {
+  transparencyDraft.value = value;
 }
 
 function onTransparencyChange(): void {
@@ -150,8 +160,8 @@ function onTransparencyChange(): void {
   );
 }
 
-function onCornerRadiusInput(event: Event): void {
-  cornerRadiusDraft.value = Number((event.target as HTMLInputElement).value);
+function onCornerRadiusInput(value: number): void {
+  cornerRadiusDraft.value = value;
 }
 
 function onCornerRadiusChange(): void {
@@ -161,14 +171,14 @@ function onCornerRadiusChange(): void {
   );
 }
 
-function onWeekStartChange(event: Event): void {
-  const monday = (event.target as HTMLSelectElement).value === "monday";
+function onWeekStartChange(value: string): void {
+  const monday = value === "monday";
   void run(() => setWeekStartsMonday(monday), "日历设置已保存");
 }
 
-function onLayerChange(event: Event): void {
+function onLayerChange(value: string): void {
   if (!settingKind.value) return;
-  const alwaysOnTop = (event.target as HTMLSelectElement).value === "top";
+  const alwaysOnTop = value === "top";
   void run(() => setWidgetLayer(settingKind.value!, alwaysOnTop), "窗口层级已更新");
 }
 
@@ -189,14 +199,12 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
         <div class="brand-mark"><span></span><span></span><span></span></div>
         <div>
           <strong>Vela</strong>
-          <small>DESKTOP COMPANION</small>
         </div>
       </div>
 
       <label class="sidebar-search">
         <AppIcon name="search" :size="17" />
         <input ref="searchInput" v-model="search" aria-label="搜索偏好设置" placeholder="搜索偏好设置" />
-        <kbd>Ctrl K</kbd>
       </label>
 
       <nav class="sidebar-nav" aria-label="中控导航">
@@ -217,15 +225,11 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
         <div v-if="visibleGroups.length === 0" class="nav-empty">没有匹配的设置</div>
       </nav>
 
-      <div class="sidebar-footer">
-        <span class="local-mark"><i></i> 本地运行</span>
-        <span class="sidebar-version">EARLY ACCESS · 0.1</span>
-      </div>
     </aside>
 
     <main class="manager-main">
       <header class="manager-header">
-        <div class="breadcrumbs"><span>VELA</span><b>/</b><span>{{ pageTitle }}</span></div>
+        <div class="breadcrumbs">{{ pageTitle }}</div>
         <button class="text-button exit-button" @click="void exitVela()">
           <AppIcon name="power" :size="15" />
           退出 Vela
@@ -233,30 +237,23 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
       </header>
 
       <div class="manager-scroll">
-        <div v-if="!nativeApp" class="preview-mode-note" role="status">
-          浏览器预览模式：开关只保存预览状态，不会创建桌面窗口。请运行 <code>npm start</code> 使用原生组件与拖动功能。
-        </div>
         <div v-if="storeError" class="store-error"><AppIcon name="info" :size="17" />{{ storeError }}</div>
 
         <template v-if="isHome">
           <section class="page-intro">
-            <div class="eyebrow"><span class="eyebrow-line"></span> YOUR DESKTOP</div>
             <div class="intro-row">
               <div>
                 <h1>桌面组件</h1>
-                <p>把常用信息放在桌面上，简洁地看见今天。</p>
               </div>
-              <div class="enabled-count"><b>{{ enabledCount }}</b><span>/ 2 已启用</span></div>
+              <div class="enabled-count"><b>{{ enabledCount }}</b><span>个已开启</span></div>
             </div>
           </section>
 
           <section class="home-section">
             <div class="section-heading">
               <div>
-                <span class="section-kicker">YOUR SPACE</span>
                 <h2>我的组件</h2>
               </div>
-              <span class="quiet-label"><i class="live-dot"></i>状态已同步</span>
             </div>
 
             <div class="component-list">
@@ -271,14 +268,9 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
                       <i></i>{{ snapshot.settings.widgets[kind].enabled ? (nativeApp ? '桌面上运行' : '预览已开启') : '未启用' }}
                     </span>
                   </div>
-                  <p>{{ kind === 'todo' && snapshot.settings.widgets.todo.enabled ? `${openTodoCount} 项未完成 · ` : '' }}{{ widgetDescriptions[kind] }}</p>
-                  <div class="component-meta">
-                    <span><AppIcon name="arrow-up-right" :size="12" /> 独立窗口</span>
-                    <span>{{ snapshot.settings.widgets[kind].alwaysOnTop ? '置顶' : '普通层级' }}</span>
-                  </div>
                 </div>
                 <div class="component-actions">
-                  <button class="configure-button" @click="activePage = kind">配置 <AppIcon name="chevron-right" :size="14" /></button>
+                  <button class="configure-button" @click="activePage = kind">设置 <AppIcon name="chevron-right" :size="14" /></button>
                   <button
                     class="switch-control"
                     :class="{ on: snapshot.settings.widgets[kind].enabled }"
@@ -292,119 +284,101 @@ onUnmounted(() => window.removeEventListener("keydown", onGlobalKeydown));
             </div>
           </section>
 
-          <section class="entry-note">
-            <div class="note-symbol"><AppIcon name="info" :size="18" /></div>
-            <div><strong>中控只在需要时出现</strong><p>在桌面组件上右键，选择“Vela 偏好设置”即可管理组件和全局设置。</p></div>
-            <span class="note-spark"><AppIcon name="spark" :size="17" /></span>
-          </section>
-
-          <div class="manager-footnote"><span>DESIGNED TO STAY OUT OF THE WAY</span><span>Vela Widgets · 0.1</span></div>
         </template>
 
         <template v-else-if="activePage === 'appearance'">
-          <section class="page-intro settings-intro">
-            <div class="eyebrow"><span class="eyebrow-line"></span> PERSONALIZE</div>
-            <h1>外观</h1>
-            <p>为组件选择适合桌面的明暗与色彩。</p>
-          </section>
           <section class="settings-panel">
-            <div class="settings-panel-heading"><div><span class="section-kicker">SURFACE</span><h2>界面主题</h2></div><span class="panel-caption">即时生效</span></div>
+            <div class="settings-panel-heading"><h2>全局界面颜色模式</h2></div>
             <div class="theme-options">
-              <button v-for="option in ([{ id: 'light', label: '浅色', desc: '白 · 蓝' }, { id: 'dark', label: '深色', desc: '蓝灰 · 靛蓝' }, { id: 'system', label: '跟随系统', desc: '自动切换' }] as const)" :key="option.id" class="theme-option" :class="{ selected: snapshot.settings.theme === option.id }" @click="onThemeChange(option.id)">
-                <span class="theme-swatch" :class="option.id"><i></i><i></i><i></i></span>
-                <strong>{{ option.label }}</strong><small>{{ option.desc }}</small>
+              <button v-for="option in ([{ id: 'light', label: '浅色' }, { id: 'dark', label: '深色' }, { id: 'system', label: '跟随系统' }] as const)" :key="option.id" class="theme-option" :class="{ selected: snapshot.settings.theme === option.id }" @click="onThemeChange(option.id)">
+                <WidgetThemePreview :theme="option.id" :selected="snapshot.settings.theme === option.id" />
+                <strong>{{ option.label }}</strong>
               </button>
             </div>
             <div class="setting-divider"></div>
             <div class="setting-line">
-              <div><strong>强调色</strong><p>用于选中状态和组件中的重点操作。</p></div>
+              <div><strong>全局界面强调色</strong></div>
               <div class="accent-control">
-                <span class="accent-dot" :style="{ backgroundColor: snapshot.settings.accentColor }"></span>
-                <input type="color" :value="snapshot.settings.accentColor" aria-label="自定义强调色" @change="onAccentChange" />
-                <span>自定义</span>
+                <button
+                  v-for="color in accentColors"
+                  :key="color"
+                  class="accent-swatch"
+                  :class="{ selected: snapshot.settings.accentColor.toLowerCase() === color }"
+                  :style="{ backgroundColor: color }"
+                  type="button"
+                  :aria-label="`选择强调色 ${color}`"
+                  :aria-pressed="snapshot.settings.accentColor.toLowerCase() === color"
+                  @click="chooseAccentColor(color)"
+                ></button>
+                <label class="accent-custom" title="自定义强调色">
+                  <input type="color" :value="snapshot.settings.accentColor" aria-label="自定义强调色" @change="onAccentChange" />
+                </label>
               </div>
             </div>
           </section>
           <section class="settings-panel compact-panel">
             <div class="setting-line range-setting-line">
-              <div><strong>组件圆角</strong><p>应用到所有桌面组件。</p></div>
-              <div class="range-control"><input type="range" min="8" max="30" step="1" :value="cornerRadiusDraft" aria-label="组件圆角" @input="onCornerRadiusInput" @change="onCornerRadiusChange" /><output>{{ cornerRadiusDraft }} px</output></div>
+              <div><strong>组件圆角</strong></div>
+              <div class="range-control"><VelaSlider :model-value="cornerRadiusDraft" :min="8" :max="30" :step="1" label="组件圆角" @update:model-value="onCornerRadiusInput" @value-commit="onCornerRadiusChange" /><output>{{ cornerRadiusDraft }} px</output></div>
             </div>
             <div class="setting-divider"></div>
             <div class="setting-line range-setting-line">
-              <div><strong>背景透明度</strong><p>原生毛玻璃；0% 不透明，100% 背景完全透明。</p></div>
-              <div class="range-control"><input type="range" min="0" max="100" step="1" :value="transparencyDraft" aria-label="组件背景透明度" @input="onTransparencyInput" @change="onTransparencyChange" /><output>{{ transparencyDraft }}%</output></div>
+              <div><strong>背景透明度</strong></div>
+              <div class="range-control"><VelaSlider :model-value="transparencyDraft" :min="0" :max="100" :step="1" label="背景透明度" @update:model-value="onTransparencyInput" @value-commit="onTransparencyChange" /><output>{{ transparencyDraft }}%</output></div>
             </div>
           </section>
         </template>
 
         <template v-else-if="settingKind && currentWidget">
-          <section class="page-intro settings-intro">
-            <div class="eyebrow"><span class="eyebrow-line"></span> WIDGET SETTINGS</div>
-            <h1>{{ settingKind === 'calendar' ? '日历' : '待办' }}</h1>
-            <p>{{ widgetDescriptions[settingKind] }}</p>
-          </section>
           <section class="settings-panel">
             <div class="setting-line">
-              <div><strong>在桌面显示</strong><p>打开后会创建独立、可移动的组件窗口。</p></div>
+              <div><strong>在桌面显示</strong></div>
               <button class="switch-control" :class="{ on: currentWidget.enabled }" role="switch" :aria-checked="currentWidget.enabled" @click="toggleCurrentWidget"><span></span></button>
             </div>
             <div class="setting-divider"></div>
             <div class="setting-line">
-              <div><strong>窗口层级</strong><p>置顶会显示在其他普通窗口上方。</p></div>
-              <select :value="currentWidget.alwaysOnTop ? 'top' : 'normal'" class="select-control" @change="onLayerChange"><option value="normal">普通层级</option><option value="top">始终置顶</option></select>
+              <div><strong>窗口层级</strong></div>
+              <VelaSelect :model-value="currentWidget.alwaysOnTop ? 'top' : 'normal'" label="窗口层级" :options="[{ value: 'normal', label: '普通层级' }, { value: 'top', label: '始终置顶' }]" @update:model-value="onLayerChange" />
             </div>
             <div class="setting-divider"></div>
             <div class="setting-line">
-              <div><strong>锁定位置和大小</strong><p>锁定后仍可使用组件中的按钮和输入框。</p></div>
+              <div><strong>锁定位置和大小</strong></div>
               <input class="checkbox-control" type="checkbox" :checked="currentWidget.locked" @change="onLockChange" />
             </div>
             <template v-if="settingKind === 'calendar'">
               <div class="setting-divider"></div>
               <div class="setting-line">
-                <div><strong>一周从哪天开始</strong><p>选择月历中的第一列。</p></div>
-                <select :value="snapshot.settings.weekStartsMonday ? 'monday' : 'sunday'" class="select-control" @change="onWeekStartChange"><option value="monday">星期一</option><option value="sunday">星期日</option></select>
+                <div><strong>一周从哪天开始</strong></div>
+                <VelaSelect :model-value="snapshot.settings.weekStartsMonday ? 'monday' : 'sunday'" label="一周从哪天开始" :options="[{ value: 'monday', label: '星期一' }, { value: 'sunday', label: '星期日' }]" @update:model-value="onWeekStartChange" />
               </div>
             </template>
-          </section>
-          <section class="settings-panel mini-stat-panel">
-            <div class="mini-stat-icon"><AppIcon :name="settingKind === 'calendar' ? 'calendar' : 'check'" :size="19" /></div>
-            <div><strong>独立桌面窗口</strong><p>可以单独移动和调整大小；窗口状态会保存在本机。</p></div>
           </section>
         </template>
 
         <template v-else-if="activePage === 'behavior'">
-          <section class="page-intro settings-intro"><div class="eyebrow"><span class="eyebrow-line"></span> DESKTOP BEHAVIOR</div><h1>组件行为</h1><p>让组件在桌面上保持顺手，也容易找回。</p></section>
           <section class="settings-panel">
-            <div class="settings-panel-heading"><div><span class="section-kicker">ACCESS</span><h2>中控入口</h2></div></div>
-            <div class="entry-preview"><span class="entry-preview-icon"><AppIcon name="more" :size="18" /></span><div><strong>Vela 偏好设置</strong><p>在日历或待办组件上右键打开中控。</p></div><span class="entry-preview-tag">组件菜单</span></div>
+            <div class="settings-panel-heading"><h2>中控入口</h2></div>
+            <div class="entry-preview"><span class="entry-preview-icon"><AppIcon name="more" :size="18" /></span><div><strong>Vela 偏好设置</strong></div></div>
             <div class="setting-divider"></div>
-            <div class="setting-line"><div><strong>桌面快捷菜单</strong><p>入口固定在组件的右键菜单中。</p></div><span class="status-pill">已启用</span></div>
+            <div class="setting-line"><div><strong>桌面快捷菜单</strong></div><span class="status-pill">已启用</span></div>
           </section>
-          <section class="settings-panel note-panel"><AppIcon name="info" :size="18" /><p>组件置底属于 Windows 兼容模式，当前首版暂不提供，避免把普通窗口层级误认为桌面壁纸层。</p></section>
         </template>
 
         <template v-else-if="activePage === 'startup'">
-          <section class="page-intro settings-intro"><div class="eyebrow"><span class="eyebrow-line"></span> STARTUP</div><h1>启动</h1><p>选择 Vela 在 Windows 登录后的行为。</p></section>
           <section class="settings-panel">
-            <div class="setting-line disabled-setting"><div><strong>登录后自动启动</strong><p>启用后恢复上次开启的组件，不自动打开中控。</p></div><span class="coming-soon">后续接入</span></div>
-            <div class="setting-divider"></div>
-            <div class="launch-summary"><AppIcon name="clock" :size="18" /><span>当前不会随 Windows 登录自动启动。</span></div>
+            <div class="setting-line disabled-setting"><div><strong>登录后自动启动</strong></div><span class="coming-soon">后续接入</span></div>
           </section>
-          <div class="settings-footnote">启动项会通过 Windows 用户启动项管理；接入前不会展示可误触的开关。</div>
         </template>
 
         <template v-else-if="activePage === 'data'">
-          <section class="page-intro settings-intro"><div class="eyebrow"><span class="eyebrow-line"></span> LOCAL DATA</div><h1>数据与关于</h1><p>组件配置和待办数据保存在这台电脑上。</p></section>
           <section class="settings-panel data-card">
             <div class="data-icon"><AppIcon name="database" :size="21" /></div>
-            <div><strong>本地 SQLite 数据库</strong><p>窗口设置、外观偏好和待办内容由 Rust 后端统一保存。</p><span class="data-location">用户应用数据目录 · vela.sqlite3</span></div>
-            <span class="data-tag">LOCAL</span>
+            <div><strong>本地 SQLite 数据库</strong></div>
           </section>
           <section class="settings-panel compact-panel">
-            <div class="setting-line"><div><strong>版本</strong><p>Vela Widgets · 早期开发版</p></div><span class="static-value">0.1.0</span></div>
+            <div class="setting-line"><div><strong>版本</strong></div><span class="static-value">0.1.0</span></div>
             <div class="setting-divider"></div>
-            <div class="setting-line"><div><strong>备份与导出</strong><p>导出待办和迁移数据将在后续版本加入。</p></div><span class="coming-soon">规划中</span></div>
+            <div class="setting-line"><div><strong>备份与导出</strong></div><span class="coming-soon">规划中</span></div>
           </section>
         </template>
       </div>

@@ -63,6 +63,9 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
     <template v-else-if="name === 'chevron-right'">
       <path d="m9.5 18 6-6-6-6" />
     </template>
+    <template v-else-if="name === 'chevron-down'">
+      <path d="m6.5 9 5.5 5.5L17.5 9" />
+    </template>
     <template v-else-if="name === 'plus'">
       <path d="M12 5v14M5 12h14" />
     </template>

@@ -3,5 +3,5 @@
   "identifier": "widget-drag",
   "description": "Allows desktop widgets to start native window dragging",
   "windows": ["calendar", "todo"],
-  "permissions": ["core:window:allow-start-dragging"]
+  "permissions": ["core:window:allow-start-dragging", "core:window:allow-set-focus"]
 }

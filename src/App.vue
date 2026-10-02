@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import CalendarWidget from "./components/CalendarWidget.vue";
+import ContextMenuWindow from "./components/ContextMenuWindow.vue";
 import ManagerView from "./components/ManagerView.vue";
 import TodoWidget from "./components/TodoWidget.vue";
 import { openManager } from "./lib/backend";
@@ -76,6 +77,7 @@ onUnmounted(() => {
   <ManagerView v-if="isManager" />
   <CalendarWidget v-else-if="view === 'calendar'" />
   <TodoWidget v-else-if="view === 'todo'" />
+  <ContextMenuWindow v-else-if="view === 'context-menu'" />
   <main v-else class="unknown-view">
     <p>找不到这个 Vela 窗口。</p>
     <button class="button-primary" @click="openManagerPreview">打开中控</button>

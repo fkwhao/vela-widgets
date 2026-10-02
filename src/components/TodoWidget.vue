@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
-import { openManager } from "../lib/backend";
+import {
+  DialogClose,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "reka-ui";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend";
 import { createTodo, deleteTodo, setTodoCompleted, setWidgetEnabled, setWidgetLayer, snapshot, updateTodo } from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
 import type { TodoItem } from "../types";
@@ -9,8 +19,10 @@ import type { TodoItem } from "../types";
 const filter = ref<"open" | "done">("open");
 const draft = ref("");
 const dueDate = ref("");
-const showDateInput = ref(false);
+const composerOpen = ref(false);
+const composerInput = ref<HTMLInputElement | null>(null);
 const editingId = ref<number | null>(null);
+const savingEditId = ref<number | null>(null);
 const editTitle = ref("");
 const editDueDate = ref("");
 const menu = ref<{ x: number; y: number } | null>(null);
@@ -47,10 +59,28 @@ async function addTodo(): Promise<void> {
     await createTodo(draft.value, dueDate.value || null);
     draft.value = "";
     dueDate.value = "";
-    showDateInput.value = false;
+    composerOpen.value = false;
   } catch (error) {
     showNotice(typeof error === "string" ? error : "待办没有保存，请重试。");
   }
+}
+
+async function openComposer(): Promise<void> {
+  menu.value = null;
+  composerOpen.value = true;
+  await nextTick();
+  composerInput.value?.focus();
+}
+
+function closeComposer(): void {
+  composerOpen.value = false;
+  draft.value = "";
+  dueDate.value = "";
+}
+
+function onComposerOpenChange(open: boolean): void {
+  if (open) composerOpen.value = true;
+  else closeComposer();
 }
 
 async function toggle(todo: TodoItem): Promise<void> {
@@ -68,15 +98,19 @@ function beginEdit(todo: TodoItem): void {
 }
 
 async function commitEdit(todo: TodoItem): Promise<void> {
+  if (savingEditId.value === todo.id) return;
   if (!editTitle.value.trim()) {
     showNotice("待办内容不能为空。");
     return;
   }
+  savingEditId.value = todo.id;
   try {
     await updateTodo(todo.id, editTitle.value, editDueDate.value || null);
     editingId.value = null;
-  } catch {
-    showNotice("待办没有保存，请重试。");
+  } catch (error) {
+    showNotice(typeof error === "string" ? error : "待办没有保存，请重试。");
+  } finally {
+    savingEditId.value = null;
   }
 }
 
@@ -88,16 +122,29 @@ async function remove(todo: TodoItem): Promise<void> {
   }
 }
 
-function openContextMenu(event: MouseEvent): void {
+async function openContextMenu(event: MouseEvent): Promise<void> {
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) {
     return;
   }
   event.preventDefault();
   event.stopPropagation();
+  if (isNativeApp()) {
+    const x = Math.max(6, Math.min(event.clientX, window.innerWidth - 194));
+    const y = Math.max(6, Math.min(event.clientY, window.innerHeight - 116));
+    try {
+      await showWidgetContextMenu("todo", x, y);
+    } catch {
+      menu.value = {
+        x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
+        y: Math.max(6, Math.min(event.clientY, window.innerHeight - 160)),
+      };
+    }
+    return;
+  }
   menu.value = {
-    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 211)),
-    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 158)),
+    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
+    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 160)),
   };
 }
 
@@ -129,10 +176,22 @@ async function closeWidget(): Promise<void> {
   menu.value = null;
 }
 
+let unlistenCompose: (() => void) | undefined;
+
 useWindowBounds("todo");
-onMounted(() => window.addEventListener("pointerdown", dismissMenu));
+onMounted(async () => {
+  window.addEventListener("pointerdown", dismissMenu);
+  if (isNativeApp()) {
+    // "新建待办" in the native context-menu window asks this widget to open its composer.
+    unlistenCompose = await listen("vela://todo-compose", async () => {
+      await getCurrentWindow().setFocus().catch(() => undefined);
+      await openComposer();
+    });
+  }
+});
 onUnmounted(() => {
   window.removeEventListener("pointerdown", dismissMenu);
+  unlistenCompose?.();
   if (noticeTimer) clearTimeout(noticeTimer);
 });
 </script>
@@ -143,9 +202,8 @@ onUnmounted(() => {
       <div class="widget-brandline">
         <span class="widget-brand-dot todo-brand-dot"></span>
         <span>待办</span>
-        <span class="todo-count">{{ activeCount }} 项未完成</span>
+      <span class="todo-count"><strong>{{ activeCount }}</strong> 项未完成</span>
       </div>
-      <span class="widget-header-caption">DESKTOP</span>
     </header>
 
     <div class="todo-tabs" role="tablist">
@@ -155,23 +213,22 @@ onUnmounted(() => {
 
     <section class="todo-list" aria-label="待办列表">
       <div v-if="visibleTodos.length === 0" class="todo-empty">
-        <span class="empty-checkmark"><AppIcon name="check" :size="19" /></span>
-        <strong>{{ filter === 'open' ? '今天从容一点' : '还没有完成的待办' }}</strong>
-        <p>{{ filter === 'open' ? '写下第一件要做的事。' : '完成的事项会留在这里。' }}</p>
+        <span>{{ filter === 'open' ? '暂无待办' : '暂无已完成事项' }}</span>
       </div>
 
       <article v-for="todo in visibleTodos" :key="todo.id" class="todo-item" :class="{ completed: todo.completed }">
         <button class="todo-check" :aria-label="todo.completed ? '取消完成' : '标记完成'" :aria-pressed="todo.completed" @click="toggle(todo)"><AppIcon v-if="todo.completed" name="check" :size="14" /></button>
         <div class="todo-item-content">
           <template v-if="editingId === todo.id">
-            <input v-model="editTitle" class="todo-edit-title" aria-label="编辑待办内容" @keydown.enter.prevent="commitEdit(todo)" @keydown.esc="editingId = null" />
-            <input v-model="editDueDate" class="todo-edit-date" type="date" aria-label="截止日期" />
-            <button class="todo-save-edit" @click="commitEdit(todo)">保存</button>
+            <form class="todo-edit-form" @submit.prevent="commitEdit(todo)" @pointerdown.stop>
+              <input v-model="editTitle" class="todo-edit-title" aria-label="编辑待办内容" maxlength="160" @keydown.esc="editingId = null" />
+              <input v-model="editDueDate" class="todo-edit-date" type="date" aria-label="截止日期" />
+              <button class="todo-save-edit" type="submit" :disabled="savingEditId === todo.id" @click.stop>{{ savingEditId === todo.id ? '保存中…' : '保存' }}</button>
+            </form>
           </template>
           <template v-else>
             <button class="todo-title-button" :title="todo.title" @dblclick="beginEdit(todo)">{{ todo.title }}</button>
             <span v-if="todo.dueDate" class="todo-due" :class="{ overdue: isOverdue(todo) }">{{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}</span>
-            <span v-else class="todo-due empty-due">双击编辑 · 添加日期</span>
           </template>
         </div>
         <button class="todo-more" :aria-label="`编辑 ${todo.title}`" title="编辑" @click="beginEdit(todo)"><AppIcon name="more" :size="16" /></button>
@@ -179,23 +236,35 @@ onUnmounted(() => {
       </article>
     </section>
 
-    <form class="todo-composer" @submit.prevent="addTodo">
-      <div class="composer-main">
-        <span class="composer-plus"><AppIcon name="plus" :size="16" /></span>
-        <input v-model="draft" placeholder="添加一项待办…" aria-label="添加一项待办" @keydown.esc="draft = ''" />
-        <button v-if="draft.trim()" class="composer-submit" type="submit">添加</button>
-      </div>
-      <div class="composer-extras">
-        <button class="date-chip" type="button" :class="{ selected: showDateInput || dueDate }" @click="showDateInput = !showDateInput"><AppIcon name="calendar" :size="13" />{{ dueDate ? formatDueDate(dueDate) : '截止日期' }}</button>
-        <span class="composer-hint">Enter 添加</span>
-        <input v-if="showDateInput" v-model="dueDate" class="composer-date-input" type="date" aria-label="选择截止日期" />
-      </div>
-    </form>
+    <DialogRoot :open="composerOpen" @update:open="onComposerOpenChange">
+      <DialogPortal>
+        <DialogOverlay class="todo-compose-overlay" />
+        <DialogContent class="todo-compose-panel">
+          <header class="todo-compose-header">
+            <DialogTitle class="todo-compose-title">新建待办</DialogTitle>
+            <DialogClose as-child>
+              <button class="todo-compose-close" type="button" aria-label="关闭新建待办" @click="closeComposer"><AppIcon name="close" :size="16" /></button>
+            </DialogClose>
+          </header>
+          <form class="todo-compose-form" @submit.prevent="addTodo">
+            <label class="todo-compose-label" for="todo-create-title">待办内容</label>
+            <input id="todo-create-title" ref="composerInput" v-model="draft" class="todo-create-input" placeholder="添加一项待办" maxlength="160" />
+            <label class="todo-compose-label" for="todo-create-date">截止日期</label>
+            <input id="todo-create-date" v-model="dueDate" class="todo-create-date" type="date" />
+            <footer class="todo-compose-actions">
+              <button class="todo-compose-cancel" type="button" @click="closeComposer">取消</button>
+              <button class="todo-compose-submit" type="submit" :disabled="!draft.trim()">添加</button>
+            </footer>
+          </form>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
 
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
     <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
-      <div class="context-menu-label">VELA WIDGET</div>
+      <button class="context-primary" @click="openComposer"><AppIcon name="plus" :size="16" />新建待办</button>
+      <div class="context-divider"></div>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
       <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ snapshot.settings.widgets.todo.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
       <div class="context-divider"></div>

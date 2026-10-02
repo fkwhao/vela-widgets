@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
-import { openManager } from "../lib/backend";
+import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend";
 import { setWidgetEnabled, setWidgetLayer, snapshot } from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
 
@@ -60,10 +60,23 @@ function goToToday(): void {
   selectedDate.value = dateKey(today);
 }
 
-function openContextMenu(event: MouseEvent): void {
+async function openContextMenu(event: MouseEvent): Promise<void> {
+  if (isNativeApp()) {
+    const x = Math.max(6, Math.min(event.clientX, window.innerWidth - 194));
+    const y = Math.max(6, Math.min(event.clientY, window.innerHeight - 116));
+    try {
+      await showWidgetContextMenu("calendar", x, y);
+    } catch {
+      menu.value = {
+        x: Math.max(6, Math.min(event.clientX, window.innerWidth - 194)),
+        y: Math.max(6, Math.min(event.clientY, window.innerHeight - 116)),
+      };
+    }
+    return;
+  }
   menu.value = {
-    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 211)),
-    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 158)),
+    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
+    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 120)),
   };
 }
 
@@ -109,7 +122,6 @@ onUnmounted(() => {
       <div class="widget-brandline">
         <span class="widget-brand-dot"></span>
         <span>日历</span>
-        <span class="widget-header-caption">DESKTOP</span>
       </div>
       <button class="widget-icon-button today-button" title="回到今天" aria-label="回到今天" @pointerdown.stop @click="goToToday">今天</button>
     </header>
@@ -143,18 +155,16 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <footer class="calendar-footer">
+    <footer class="calendar-footer" aria-label="已选择日期">
       <div class="selected-date">
         <span class="selected-date-marker"></span>
-        <div><span>已选择日期</span><strong>{{ selectedLabel }}</strong></div>
+        <strong>{{ selectedLabel }}</strong>
       </div>
-      <span class="calendar-footer-note">右键 · 偏好设置</span>
     </footer>
 
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
     <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
-      <div class="context-menu-label">VELA WIDGET</div>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
       <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ snapshot.settings.widgets.calendar.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
       <div class="context-divider"></div>

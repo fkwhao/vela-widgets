@@ -165,6 +165,14 @@ export async function openManager(): Promise<void> {
   window.location.search = "?view=manager";
 }
 
+export async function showWidgetContextMenu(
+  kind: WidgetKind,
+  x: number,
+  y: number,
+): Promise<void> {
+  if (isNativeApp()) await invoke("show_context_menu", { kind, x, y });
+}
+
 export async function exitVela(): Promise<void> {
   if (isNativeApp()) await invoke("exit_vela");
   else window.close();

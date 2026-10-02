@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissions for Vela's manager and widget windows",
-  "windows": ["manager", "calendar", "todo"],
+  "windows": ["manager", "calendar", "todo", "context-menu"],
   "permissions": ["core:default"]
 }
