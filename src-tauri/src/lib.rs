@@ -1,9 +1,11 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::PathBuf, sync::Mutex, thread, time::Duration};
+use std::{collections::HashMap, fs, mem::size_of, path::PathBuf, sync::Mutex, thread, time::Duration};
 use tauri::{
-    webview::WebviewWindowBuilder, AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize,
-    State, WebviewUrl, WindowEvent,
+    utils::config::WindowEffectsConfig,
+    window::Effect,
+    webview::WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewUrl, WindowEvent,
 };
 
 #[cfg(target_os = "windows")]
@@ -12,9 +14,11 @@ mod native_surface;
 const WIDGET_KINDS: [&str; 2] = ["calendar", "todo"];
 const SNAPSHOT_UPDATED_EVENT: &str = "vela://snapshot-updated";
 const CONTEXT_MENU_WIDTH: f64 = 188.0;
-const CONTEXT_MENU_HEIGHT: f64 = 110.0;
+// Size picker row (31px) plus its divider (7px) on top of the base items.
+const CONTEXT_MENU_HEIGHT: f64 = 148.0;
 // The to-do menu adds a "新建待办" item (31px) and a divider (7px).
-const TODO_CONTEXT_MENU_HEIGHT: f64 = 148.0;
+const TODO_CONTEXT_MENU_HEIGHT: f64 = 186.0;
+const WIDGET_SIZES: [&str; 3] = ["small", "medium", "large"];
 const CONTEXT_MENU_CORNER_RADIUS: u8 = 11;
 
 fn default_widget_transparency() -> u8 {
@@ -23,6 +27,20 @@ fn default_widget_transparency() -> u8 {
 
 fn default_widget_corner_radius() -> u8 {
     19
+}
+
+// Widgets saved before size presets existed were sized for the full layout.
+fn default_widget_size() -> String {
+    "large".to_string()
+}
+
+// Fixed, mac-style widget footprints in logical pixels.
+fn widget_dimensions(size: &str) -> (f64, f64) {
+    match size {
+        "small" => (170.0, 170.0),
+        "medium" => (364.0, 170.0),
+        _ => (364.0, 384.0),
+    }
 }
 
 pub struct AppState {
@@ -41,6 +59,8 @@ pub struct WidgetSettings {
     pub y: Option<f64>,
     pub width: f64,
     pub height: f64,
+    #[serde(default = "default_widget_size")]
+    pub size: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -84,8 +104,9 @@ impl Default for Settings {
                 locked: false,
                 x: None,
                 y: None,
-                width: 332.0,
-                height: 450.0,
+                width: 364.0,
+                height: 384.0,
+                size: "large".to_string(),
             },
         );
         widgets.insert(
@@ -96,8 +117,9 @@ impl Default for Settings {
                 locked: false,
                 x: None,
                 y: None,
-                width: 350.0,
-                height: 430.0,
+                width: 364.0,
+                height: 170.0,
+                size: "medium".to_string(),
             },
         );
         Self {
@@ -327,12 +349,14 @@ fn create_widget_window(
     };
     let url = WebviewUrl::App(format!("index.html?view={kind}").into());
     let data_directory = webview_data_path(app)?;
+    let (width, height) = widget_dimensions(&settings.size);
+    // Widgets switch between fixed size presets instead of free resizing.
     let mut builder = WebviewWindowBuilder::new(app, kind, url)
         .data_directory(data_directory)
         .title(title)
-        .inner_size(settings.width, settings.height.max(320.0))
-        .min_inner_size(280.0, 320.0)
-        .resizable(!settings.locked)
+        .inner_size(width, height)
+        .resizable(false)
+        .maximizable(false)
         .decorations(false)
         .transparent(true)
         .no_redirection_bitmap(true)
@@ -396,29 +420,82 @@ fn exclude_widget_from_switcher(window: &tauri::WebviewWindow) -> Result<(), Str
     Ok(())
 }
 
+/// Mica needs Windows 11 (build 22000+). Older builds would leave a
+/// transparent manager window with nothing behind it, so stay opaque there.
+#[cfg(target_os = "windows")]
+fn supports_mica() -> bool {
+    use windows::{
+        core::{s, w},
+        Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress},
+    };
+    #[repr(C)]
+    struct OsVersionInfo {
+        size: u32,
+        major: u32,
+        minor: u32,
+        build: u32,
+        platform: u32,
+        service_pack: [u16; 128],
+    }
+    type RtlGetVersion = unsafe extern "system" fn(*mut OsVersionInfo) -> i32;
+    unsafe {
+        let Ok(module) = GetModuleHandleW(w!("ntdll.dll")) else {
+            return false;
+        };
+        let Some(procedure) = GetProcAddress(module, s!("RtlGetVersion")) else {
+            return false;
+        };
+        let get_version: RtlGetVersion = std::mem::transmute(procedure);
+        let mut info = OsVersionInfo {
+            size: size_of::<OsVersionInfo>() as u32,
+            major: 0,
+            minor: 0,
+            build: 0,
+            platform: 0,
+            service_pack: [0; 128],
+        };
+        get_version(&mut info) == 0 && info.major >= 10 && info.build >= 22000
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn supports_mica() -> bool {
+    false
+}
+
 fn create_manager_window(app: &tauri::App) -> Result<(), String> {
     let data_directory = webview_data_path(app.handle())?;
     let visible = cfg!(debug_assertions)
         && std::env::var("VELA_SHOW_MANAGER")
             .map(|value| value == "1")
             .unwrap_or(false);
-    WebviewWindowBuilder::new(
-        app,
-        "manager",
-        WebviewUrl::App("index.html?view=manager".into()),
-    )
-    .data_directory(data_directory)
-    .title("Vela Widgets")
-    .inner_size(1000.0, 720.0)
-    .min_inner_size(780.0, 580.0)
-    .center()
-    .visible(visible)
-    .resizable(true)
-    .decorations(true)
-    .skip_taskbar(false)
-    .build()
-    .map(|_| ())
-    .map_err(|error| error.to_string())
+    let mica = supports_mica();
+    let url = if mica {
+        "index.html?view=manager&backdrop=mica"
+    } else {
+        "index.html?view=manager"
+    };
+    let mut builder = WebviewWindowBuilder::new(app, "manager", WebviewUrl::App(url.into()))
+        .data_directory(data_directory)
+        .title("Vela 偏好设置")
+        .inner_size(1000.0, 720.0)
+        .min_inner_size(780.0, 580.0)
+        .center()
+        .visible(visible)
+        .resizable(true)
+        .decorations(true)
+        .skip_taskbar(false);
+    if mica {
+        // The title bar and the WebView share one Mica backdrop, like Windows Settings.
+        builder = builder.transparent(true).effects(WindowEffectsConfig {
+            effects: vec![Effect::Mica],
+            ..Default::default()
+        });
+    }
+    builder
+        .build()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -660,10 +737,57 @@ async fn set_widget_locked(
         widget.locked = locked;
         Ok(())
     })?;
+    publish_snapshot(&app, state.inner())
+}
+
+#[tauri::command]
+async fn set_widget_size(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    kind: String,
+    size: String,
+) -> Result<AppSnapshot, String> {
+    validate_widget(&kind)?;
+    if !WIDGET_SIZES.contains(&size.as_str()) {
+        return Err("不支持这个组件尺寸。".to_string());
+    }
+    let (width, height) = widget_dimensions(&size);
+    update_settings(state.inner(), |settings| {
+        let widget = settings
+            .widgets
+            .get_mut(&kind)
+            .ok_or_else(|| "找不到这个组件的设置。".to_string())?;
+        widget.size = size.clone();
+        widget.width = width;
+        widget.height = height;
+        Ok(())
+    })?;
     if let Some(window) = app.get_webview_window(&kind) {
         window
-            .set_resizable(!locked)
+            .set_size(tauri::LogicalSize::new(width, height))
             .map_err(|error| error.to_string())?;
+        // Growing near a screen edge would push the widget off the monitor.
+        if let (Ok(position), Ok(Some(monitor))) = (window.outer_position(), window.current_monitor()) {
+            let scale = window.scale_factor().map_err(|error| error.to_string())?;
+            let origin = monitor.position();
+            let monitor_size = monitor.size();
+            let max_x = origin.x + monitor_size.width as i32 - (width * scale).round() as i32;
+            let max_y = origin.y + monitor_size.height as i32 - (height * scale).round() as i32;
+            let x = position.x.clamp(origin.x, max_x.max(origin.x));
+            let y = position.y.clamp(origin.y, max_y.max(origin.y));
+            if x != position.x || y != position.y {
+                window
+                    .set_position(PhysicalPosition::new(x, y))
+                    .map_err(|error| error.to_string())?;
+            }
+        }
+        let corner_radius = {
+            let connection = lock_database(state.inner())?;
+            read_settings(&connection)
+                .map_err(|error| error.to_string())?
+                .widget_corner_radius
+        };
+        apply_widget_corners(&window, corner_radius)?;
     }
     publish_snapshot(&app, state.inner())
 }
@@ -740,13 +864,11 @@ async fn set_widget_appearance(
 }
 
 #[tauri::command]
-fn save_widget_bounds(
+fn save_widget_position(
     state: State<'_, AppState>,
     kind: String,
     x: f64,
     y: f64,
-    width: f64,
-    height: f64,
 ) -> Result<(), String> {
     validate_widget(&kind)?;
     let connection = lock_database(&state)?;
@@ -757,8 +879,6 @@ fn save_widget_bounds(
         .ok_or_else(|| "找不到这个组件的设置。".to_string())?;
     widget.x = Some(x);
     widget.y = Some(y);
-    widget.width = width.max(280.0);
-    widget.height = height.max(320.0);
     write_settings(&connection, &settings).map_err(|error| error.to_string())
 }
 
@@ -982,11 +1102,12 @@ pub fn run() {
             set_widget_enabled,
             set_widget_layer,
             set_widget_locked,
+            set_widget_size,
             set_week_starts_monday,
             set_theme,
             set_accent_color,
             set_widget_appearance,
-            save_widget_bounds,
+            save_widget_position,
             create_todo,
             update_todo,
             set_todo_completed,

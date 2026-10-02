@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import CalendarWidget from "./components/CalendarWidget.vue";
 import ContextMenuWindow from "./components/ContextMenuWindow.vue";
 import ManagerView from "./components/ManagerView.vue";
@@ -10,7 +11,10 @@ import { applySnapshot, refreshSnapshot, snapshot } from "./lib/store";
 import { isNativeApp } from "./lib/backend";
 import type { AppSnapshot } from "./types";
 
-const view = new URLSearchParams(window.location.search).get("view") ?? "manager";
+const query = new URLSearchParams(window.location.search);
+const view = query.get("view") ?? "manager";
+// Set by the native side only when the manager window actually has Mica.
+if (query.get("backdrop") === "mica") document.documentElement.dataset.backdrop = "mica";
 const isManager = computed(() => view === "manager");
 const systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
 let pixelRatioQuery: MediaQueryList | undefined;
@@ -30,6 +34,10 @@ function applyTheme(): void {
   const systemDark = systemThemeQuery?.matches ?? false;
   const resolved = configured === "system" ? (systemDark ? "dark" : "light") : configured;
   document.documentElement.dataset.theme = resolved;
+  if (isManager.value && isNativeApp()) {
+    // Keep the native title bar and Mica tint in step with Vela's own theme.
+    void getCurrentWindow().setTheme(configured === "system" ? null : resolved).catch(() => undefined);
+  }
   document.documentElement.style.setProperty("--accent", snapshot.value.settings.accentColor);
   const transparency = Math.min(100, Math.max(0, snapshot.value.settings.widgetTransparency));
   const cornerRadius = Math.min(30, Math.max(8, snapshot.value.settings.widgetCornerRadius));

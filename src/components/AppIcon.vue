@@ -28,6 +28,9 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
       <rect x="4" y="4" width="16" height="16" rx="4" />
       <path d="m8.5 12.5 2.3 2.3 4.8-5.2" />
     </template>
+    <template v-else-if="name === 'tick'">
+      <path d="m5.5 12.5 4.2 4.2 8.8-9.4" stroke-width="2.4" />
+    </template>
     <template v-else-if="name === 'sun'">
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2.5v2M12 19.5v2M4.7 4.7l1.4 1.4m11.8 11.8 1.4 1.4M2.5 12h2m15 0h2M4.7 19.3l1.4-1.4M17.9 6.1l1.4-1.4" />

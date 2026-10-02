@@ -1,0 +1,315 @@
+/* Preferences window — follows Windows 11 Settings (Fluent) conventions. */
+:root {
+  --win-bg: #f3f3f3;
+  --win-layer: rgba(255, 255, 255, .5);
+  --win-layer-stroke: rgba(0, 0, 0, .06);
+  --win-card: rgba(255, 255, 255, .7);
+  --win-card-hover: rgba(249, 249, 249, .6);
+  --win-card-press: rgba(249, 249, 249, .3);
+  --win-card-stroke: rgba(0, 0, 0, .06);
+  --win-subtle-hover: rgba(0, 0, 0, .037);
+  --win-subtle-press: rgba(0, 0, 0, .024);
+  --win-text: rgba(0, 0, 0, .896);
+  --win-text-2: rgba(0, 0, 0, .606);
+  --win-text-3: rgba(0, 0, 0, .446);
+  --win-control: rgba(255, 255, 255, .7);
+  --win-control-hover: rgba(249, 249, 249, .5);
+  --win-control-stroke: rgba(0, 0, 0, .0578);
+  --win-control-stroke-bottom: rgba(0, 0, 0, .1622);
+  --win-flyout: #f9f9f9;
+  --win-toggle-off: rgba(0, 0, 0, .606);
+  --win-divider: rgba(0, 0, 0, .0803);
+  --win-danger-bg: #fde7e9;
+  --win-danger: #c42b1c;
+}
+:root[data-theme="dark"] {
+  --win-bg: #202020;
+  --win-layer: rgba(58, 58, 58, .3);
+  --win-layer-stroke: rgba(0, 0, 0, .1);
+  --win-card: rgba(255, 255, 255, .0512);
+  --win-card-hover: rgba(255, 255, 255, .0837);
+  --win-card-press: rgba(255, 255, 255, .0326);
+  --win-card-stroke: rgba(0, 0, 0, .1);
+  --win-subtle-hover: rgba(255, 255, 255, .0605);
+  --win-subtle-press: rgba(255, 255, 255, .0419);
+  --win-text: #fff;
+  --win-text-2: rgba(255, 255, 255, .786);
+  --win-text-3: rgba(255, 255, 255, .544);
+  --win-control: rgba(255, 255, 255, .0605);
+  --win-control-hover: rgba(255, 255, 255, .0837);
+  --win-control-stroke: rgba(255, 255, 255, .0698);
+  --win-control-stroke-bottom: rgba(255, 255, 255, .093);
+  --win-flyout: #2c2c2c;
+  --win-toggle-off: rgba(255, 255, 255, .786);
+  --win-divider: rgba(255, 255, 255, .0837);
+  --win-danger-bg: #442726;
+  --win-danger: #ff99a4;
+}
+
+.manager-shell {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 264px minmax(0, 1fr);
+  color: var(--win-text);
+  background: var(--win-bg);
+  font-size: 14px;
+  user-select: none;
+}
+/* On Windows 11 the window's Mica shows through; the title bar shares it. */
+:root[data-backdrop="mica"] .manager-shell { background: transparent; }
+
+.manager-sidebar { display: flex; min-height: 0; flex-direction: column; padding: 4px 4px 12px; }
+
+.sidebar-search {
+  position: relative;
+  display: flex;
+  height: 32px;
+  flex: none;
+  align-items: center;
+  margin: 4px 12px 12px;
+  padding: 0 10px 0 11px;
+  color: var(--win-text-2);
+  border: 1px solid var(--win-control-stroke);
+  border-bottom-color: var(--win-control-stroke-bottom);
+  border-radius: 4px;
+  background: var(--win-control);
+}
+.sidebar-search:hover { background: var(--win-control-hover); }
+.sidebar-search:focus-within { border-bottom-color: var(--accent); background: var(--win-flyout); box-shadow: inset 0 -1px 0 var(--accent); }
+.sidebar-search input { width: 100%; min-width: 0; padding: 0; color: var(--win-text); border: 0; outline: none; background: transparent; font-size: 14px; }
+.sidebar-search input::placeholder { color: var(--win-text-2); }
+
+.sidebar-nav { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 2px; overflow-y: auto; padding: 0 4px; scrollbar-width: thin; }
+.nav-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 36px;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+  padding: 0 12px 0 14px;
+  color: var(--win-text);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: default;
+}
+.nav-item svg { flex: none; }
+.nav-item:hover { background: var(--win-subtle-hover); }
+.nav-item:active { background: var(--win-subtle-press); color: var(--win-text-2); }
+.nav-item.active { background: var(--win-subtle-hover); }
+.nav-item.active::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(-50%);
+  content: "";
+}
+.nav-separator { height: 1px; flex: none; margin: 6px 10px; background: var(--win-divider); }
+.nav-empty { padding: 10px 14px; color: var(--win-text-2); font-size: 13px; }
+
+.manager-main {
+  min-width: 0;
+  min-height: 0;
+  border-top: 1px solid var(--win-layer-stroke);
+  border-left: 1px solid var(--win-layer-stroke);
+  border-top-left-radius: 8px;
+  background: var(--win-layer);
+}
+.manager-scroll { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--win-text-3) transparent; }
+.manager-page { max-width: 1000px; margin: 0 auto; padding: 30px 40px 40px; }
+
+.page-title { margin: 0 0 24px; font-size: 28px; font-weight: 600; line-height: 36px; }
+.page-subtitle { margin: -16px 0 20px; color: var(--win-text-2); font-size: 14px; }
+.section-title { margin: 28px 0 8px; font-size: 14px; font-weight: 600; line-height: 20px; }
+.section-title.first { margin-top: 0; }
+
+.settings-group { display: grid; gap: 4px; }
+.settings-card {
+  position: relative;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid var(--win-card-stroke);
+  border-radius: 6px;
+  background: var(--win-card);
+}
+.settings-card.clickable:hover { background: var(--win-card-hover); }
+.settings-card.clickable:active { background: var(--win-card-press); }
+.settings-card.stacked { display: grid; gap: 16px; }
+.settings-card.disabled .card-icon, .settings-card.disabled .card-text { opacity: .5; }
+.card-row { display: flex; align-items: center; gap: 16px; }
+.card-link { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: inherit; background: transparent; cursor: default; }
+.card-link:focus-visible { outline: 2px solid var(--win-text); outline-offset: -2px; }
+.settings-card.clickable > :not(.card-link) { position: relative; z-index: 1; pointer-events: none; }
+.settings-card.clickable .toggle-switch { pointer-events: auto; }
+.card-icon { flex: none; color: var(--win-text); }
+.card-icon-tile { display: grid; width: 36px; height: 36px; flex: none; place-items: center; color: var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.card-icon-tile.todo { color: #3f8f6f; background: color-mix(in srgb, #3f8f6f 15%, transparent); }
+:root[data-theme="dark"] .card-icon-tile.todo { color: #6cc39e; }
+.card-text { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.card-text strong { font-size: 14px; font-weight: 400; line-height: 20px; }
+.card-text span { color: var(--win-text-2); font-size: 12px; line-height: 16px; }
+.card-control { display: flex; flex: none; align-items: center; gap: 12px; }
+.card-chevron { color: var(--win-text-2); }
+.hint-card { margin-top: 20px; min-height: 60px; background: transparent; }
+
+/* Toggle switch (WinUI ToggleSwitch) */
+.toggle-state { min-width: 14px; color: var(--win-text); font-size: 14px; text-align: right; }
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--win-toggle-off);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .024);
+  cursor: default;
+  transition: background .12s ease, border-color .12s ease;
+}
+:root[data-theme="dark"] .toggle-switch { background: rgba(0, 0, 0, .1); }
+.toggle-switch span {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--win-toggle-off);
+  transform: translateY(-50%);
+  transition: left .16s cubic-bezier(.2, 0, 0, 1), width .12s ease, height .12s ease, background .12s ease;
+}
+.toggle-switch:hover:not(:disabled) span { width: 14px; height: 14px; left: 3px; }
+.toggle-switch:active:not(:disabled) span { width: 17px; }
+.toggle-switch.on { border-color: var(--accent); background: var(--accent); }
+.toggle-switch.on span { left: 22px; background: #fff; }
+.toggle-switch.on:hover:not(:disabled) span { left: 21px; }
+.toggle-switch.on:active:not(:disabled) span { left: 18px; }
+.toggle-switch:disabled { cursor: not-allowed; opacity: .45; }
+
+/* Button (WinUI standard button) */
+.win-button {
+  min-width: 96px;
+  height: 32px;
+  padding: 0 12px;
+  color: var(--win-text);
+  border: 1px solid var(--win-control-stroke);
+  border-bottom-color: var(--win-control-stroke-bottom);
+  border-radius: 4px;
+  background: var(--win-control);
+  font-size: 14px;
+  cursor: default;
+}
+.win-button:hover { background: var(--win-control-hover); }
+.win-button:active { color: var(--win-text-2); border-bottom-color: var(--win-control-stroke); }
+
+/* ComboBox */
+.vela-select-trigger {
+  display: inline-flex;
+  min-width: 140px;
+  height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px 0 11px;
+  color: var(--win-text);
+  border: 1px solid var(--win-control-stroke);
+  border-bottom-color: var(--win-control-stroke-bottom);
+  border-radius: 4px;
+  background: var(--win-control);
+  font-size: 14px;
+  text-align: left;
+  cursor: default;
+}
+.vela-select-trigger:hover, .vela-select-trigger[data-state="open"] { background: var(--win-control-hover); }
+.vela-select-chevron { flex: none; color: var(--win-text-2); }
+.vela-select-content {
+  z-index: 100;
+  min-width: var(--reka-select-trigger-width);
+  padding: 4px;
+  color: var(--win-text);
+  border: 1px solid var(--win-control-stroke);
+  border-radius: 8px;
+  background: var(--win-flyout);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, .14);
+  transform-origin: var(--reka-select-content-transform-origin);
+  animation: vela-select-in .14s cubic-bezier(.2, 0, 0, 1);
+}
+.vela-select-viewport { max-height: min(240px, var(--reka-select-content-available-height)); }
+.vela-select-item { position: relative; display: flex; height: 32px; align-items: center; justify-content: space-between; gap: 18px; padding: 0 10px 0 14px; border-radius: 4px; font-size: 14px; outline: none; cursor: default; user-select: none; }
+.vela-select-item[data-highlighted] { background: var(--win-subtle-hover); }
+.vela-select-item[data-state="checked"] { background: var(--win-subtle-hover); }
+.vela-select-item[data-state="checked"]::before { position: absolute; top: 50%; left: 0; width: 3px; height: 16px; border-radius: 2px; background: var(--accent); transform: translateY(-50%); content: ""; }
+.vela-select-item-indicator { display: none; }
+.vela-select-item[data-disabled] { opacity: .5; pointer-events: none; }
+@keyframes vela-select-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Slider */
+.range-control output { min-width: 44px; color: var(--win-text-2); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
+.range-control .vela-slider-root { width: 200px; }
+.vela-slider-root { position: relative; display: flex; height: 32px; align-items: center; touch-action: none; user-select: none; }
+.vela-slider-track { position: relative; width: 100%; height: 4px; border-radius: 2px; background: var(--win-toggle-off); }
+.vela-slider-range { position: absolute; height: 100%; border-radius: inherit; background: var(--accent); }
+.vela-slider-thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--win-control-stroke);
+  border-radius: 50%;
+  background: var(--win-flyout);
+  box-shadow: inset 0 0 0 4px var(--win-flyout), inset 0 0 0 10px var(--accent);
+  transition: box-shadow .12s ease;
+}
+.vela-slider-thumb:hover { box-shadow: inset 0 0 0 3px var(--win-flyout), inset 0 0 0 10px var(--accent); }
+.vela-slider-thumb:active { box-shadow: inset 0 0 0 5px var(--win-flyout), inset 0 0 0 10px var(--accent); }
+.vela-slider-thumb:focus-visible { outline: 2px solid var(--win-text); outline-offset: 1px; }
+
+/* Theme and accent pickers */
+.theme-options { display: flex; flex-wrap: wrap; gap: 16px; padding-left: 34px; }
+.theme-option { display: grid; justify-items: center; gap: 8px; padding: 0; color: var(--win-text); border: 0; background: transparent; font-size: 14px; cursor: default; }
+.theme-option:hover .widget-theme-preview { border-color: var(--win-text-3); }
+.theme-option:hover .abstract-widget { transform: translateY(-2px); }
+.theme-option:active .abstract-widget { transform: translateY(0) scale(.98); }
+.theme-option.selected .widget-theme-preview { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.accent-control { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.accent-swatch { width: 24px; height: 24px; flex: none; padding: 0; border: 0; border-radius: 4px; cursor: default; }
+.accent-swatch:hover { box-shadow: 0 0 0 2px var(--win-card), 0 0 0 3px var(--win-text-3); }
+.accent-swatch.selected { box-shadow: 0 0 0 2px var(--win-flyout), 0 0 0 4px var(--win-text); }
+.accent-custom { position: relative; display: block; width: 24px; height: 24px; flex: none; overflow: hidden; border-radius: 4px; background: conic-gradient(#e74646, #eaa52c, #6cae65, #4c9fca, #765eb5, #d45091, #e74646); }
+.accent-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; opacity: 0; }
+
+/* InfoBar (error severity) */
+.info-bar { display: flex; align-items: center; gap: 12px; margin: -8px 0 16px; padding: 12px 16px; color: var(--win-text); border: 1px solid var(--win-card-stroke); border-radius: 4px; background: var(--win-danger-bg); font-size: 14px; }
+.info-bar-icon { display: grid; width: 16px; height: 16px; flex: none; place-items: center; color: #fff; border-radius: 50%; background: var(--win-danger); font-size: 11px; font-weight: 700; }
+:root[data-theme="dark"] .info-bar-icon { color: #000; }
+
+.about-card { min-height: 76px; }
+.about-card .card-text strong { font-size: 16px; font-weight: 600; }
+.brand-mark { display: flex; width: 36px; height: 36px; flex: none; align-items: center; justify-content: center; gap: 3px; border-radius: 8px; background: var(--accent); }
+.brand-mark span { width: 3px; border-radius: 2px; background: #fff; }
+.brand-mark span:nth-child(1) { height: 9px; opacity: .7; }
+.brand-mark span:nth-child(2) { height: 17px; }
+.brand-mark span:nth-child(3) { height: 12px; opacity: .85; }
+
+.manager-shell button:focus-visible, .manager-shell input:focus-visible { outline: 2px solid var(--win-text); outline-offset: 1px; }
+
+@media (max-width: 860px) {
+  .manager-shell { grid-template-columns: 56px minmax(0, 1fr); }
+  .sidebar-search, .nav-item span, .nav-separator { display: none; }
+  .sidebar-nav { padding-top: 8px; }
+  .nav-item { justify-content: center; padding: 0; }
+  .manager-page { padding: 24px 24px 32px; }
+  .range-control .vela-slider-root { width: 140px; }
+}

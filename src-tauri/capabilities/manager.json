@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "manager",
+  "description": "Lets the manager keep its title bar and Mica tint in sync with Vela's theme",
+  "windows": ["manager"],
+  "permissions": ["core:window:allow-set-theme"]
+}

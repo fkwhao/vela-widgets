@@ -1,5 +1,12 @@
 export type WidgetKind = "calendar" | "todo";
 export type ThemeMode = "light" | "dark" | "system";
+export type WidgetSize = "small" | "medium" | "large";
+
+export const widgetSizeOptions: { value: WidgetSize; label: string }[] = [
+  { value: "small", label: "小" },
+  { value: "medium", label: "中" },
+  { value: "large", label: "大" },
+];
 
 export interface WidgetSettings {
   enabled: boolean;
@@ -9,6 +16,7 @@ export interface WidgetSettings {
   y: number | null;
   width: number;
   height: number;
+  size: WidgetSize;
 }
 
 export interface Settings {
@@ -47,8 +55,9 @@ export const defaultSnapshot: AppSnapshot = {
         locked: false,
         x: null,
         y: null,
-        width: 332,
-        height: 450,
+        width: 364,
+        height: 384,
+        size: "large",
       },
       todo: {
         enabled: false,
@@ -56,8 +65,9 @@ export const defaultSnapshot: AppSnapshot = {
         locked: false,
         x: null,
         y: null,
-        width: 350,
-        height: 430,
+        width: 364,
+        height: 170,
+        size: "medium",
       },
     },
   },

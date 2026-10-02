@@ -3,12 +3,15 @@ import { nextTick, onMounted, onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import AppIcon from "./AppIcon.vue";
+import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import { getSnapshot, openManager } from "../lib/backend";
-import { refreshSnapshot, setWidgetEnabled, setWidgetLayer } from "../lib/store";
-import type { WidgetKind } from "../types";
+import { refreshSnapshot, setWidgetEnabled, setWidgetLayer, setWidgetSize } from "../lib/store";
+import type { WidgetKind, WidgetSize } from "../types";
 
 const widgetKind = ref<WidgetKind>("calendar");
 const alwaysOnTop = ref(false);
+const widgetSize = ref<WidgetSize>("large");
+const sizeFailed = ref(false);
 const closeBlocked = ref(false);
 const layerFailed = ref(false);
 let unlistenKind: (() => void) | undefined;
@@ -25,6 +28,7 @@ async function refreshLayerState(): Promise<void> {
   try {
     const current = await getSnapshot();
     alwaysOnTop.value = current.settings.widgets[widgetKind.value].alwaysOnTop;
+    widgetSize.value = current.settings.widgets[widgetKind.value].size;
   } catch {
     // Keep the last known menu state if the local store is temporarily busy.
   }
@@ -62,6 +66,18 @@ async function toggleLayer(): Promise<void> {
   }
 }
 
+async function chooseSize(size: WidgetSize): Promise<void> {
+  try {
+    widgetSize.value = size;
+    await setWidgetSize(widgetKind.value, size);
+    await dismissMenu();
+  } catch {
+    sizeFailed.value = true;
+    void refreshLayerState();
+    setTimeout(() => (sizeFailed.value = false), 1800);
+  }
+}
+
 async function closeWidget(): Promise<void> {
   try {
     await setWidgetEnabled(widgetKind.value, false);
@@ -89,6 +105,7 @@ onMounted(async () => {
     }
     closeBlocked.value = false;
     layerFailed.value = false;
+    sizeFailed.value = false;
   });
   try {
     const currentKind: unknown = await invoke("get_context_menu_widget");
@@ -128,6 +145,8 @@ onUnmounted(() => {
       <button role="menuitem" :disabled="layerFailed" @click="toggleLayer">
         <AppIcon name="arrow-up-right" :size="14" />{{ layerFailed ? "层级设置未保存" : alwaysOnTop ? "取消置顶" : "始终置顶" }}
       </button>
+      <div class="context-divider"></div>
+      <WidgetSizeMenuRow :size="widgetSize" :disabled="sizeFailed" @choose="chooseSize" />
       <div class="context-divider"></div>
       <button class="context-danger" role="menuitem" :disabled="closeBlocked" @click="closeWidget">
         <AppIcon name="close" :size="14" />{{ closeBlocked ? "至少保留一个组件" : `关闭${widgetTitle()}组件` }}

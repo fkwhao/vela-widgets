@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
+import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import {
   DialogClose,
   DialogContent,
@@ -12,9 +13,18 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend";
-import { createTodo, deleteTodo, setTodoCompleted, setWidgetEnabled, setWidgetLayer, snapshot, updateTodo } from "../lib/store";
+import {
+  createTodo,
+  deleteTodo,
+  setTodoCompleted,
+  setWidgetEnabled,
+  setWidgetLayer,
+  setWidgetSize,
+  snapshot,
+  updateTodo,
+} from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
-import type { TodoItem } from "../types";
+import type { TodoItem, WidgetSize } from "../types";
 
 const filter = ref<"open" | "done">("open");
 const draft = ref("");
@@ -33,6 +43,13 @@ const openTodos = computed(() => snapshot.value.todos.filter((todo) => !todo.com
 const completedTodos = computed(() => snapshot.value.todos.filter((todo) => todo.completed));
 const visibleTodos = computed(() => (filter.value === "open" ? openTodos.value : completedTodos.value));
 const activeCount = computed(() => openTodos.value.length);
+const widget = computed(() => snapshot.value.settings.widgets.todo);
+const size = computed(() => widget.value.size);
+const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
+// Compact layouts show only what fits; the large layout scrolls the full list.
+const glanceTodos = computed(() => openTodos.value.slice(0, size.value === "small" ? 3 : 4));
+const hiddenCount = computed(() => Math.max(0, openTodos.value.length - glanceTodos.value.length));
+const countCaption = computed(() => (activeCount.value === 0 ? "全部完成" : "项未完成"));
 
 function formatDueDate(value: string | null): string {
   if (!value) return "";
@@ -130,21 +147,17 @@ async function openContextMenu(event: MouseEvent): Promise<void> {
   event.preventDefault();
   event.stopPropagation();
   if (isNativeApp()) {
-    const x = Math.max(6, Math.min(event.clientX, window.innerWidth - 194));
-    const y = Math.max(6, Math.min(event.clientY, window.innerHeight - 116));
     try {
-      await showWidgetContextMenu("todo", x, y);
+      // The native popup clamps itself to the monitor, not to this small window.
+      await showWidgetContextMenu("todo", event.clientX, event.clientY);
+      return;
     } catch {
-      menu.value = {
-        x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
-        y: Math.max(6, Math.min(event.clientY, window.innerHeight - 160)),
-      };
+      // Fall through to the in-window menu.
     }
-    return;
   }
   menu.value = {
-    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
-    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 160)),
+    x: Math.max(4, Math.min(event.clientX, window.innerWidth - 192)),
+    y: Math.max(4, Math.min(event.clientY, window.innerHeight - 190)),
   };
 }
 
@@ -160,11 +173,20 @@ function showNotice(message: string): void {
 
 async function toggleLayer(): Promise<void> {
   try {
-    await setWidgetLayer("todo", !snapshot.value.settings.widgets.todo.alwaysOnTop);
+    await setWidgetLayer("todo", !widget.value.alwaysOnTop);
   } catch {
     showNotice("层级设置暂时没有保存。");
   }
   menu.value = null;
+}
+
+async function chooseSize(next: WidgetSize): Promise<void> {
+  menu.value = null;
+  try {
+    await setWidgetSize("todo", next);
+  } catch {
+    showNotice("尺寸暂时没有保存。");
+  }
 }
 
 async function closeWidget(): Promise<void> {
@@ -197,61 +219,118 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="widget-window todo-widget" @contextmenu="openContextMenu">
-    <header class="widget-header todo-header" :class="{ 'widget-header-draggable': !snapshot.settings.widgets.todo.locked }" :data-tauri-drag-region="snapshot.settings.widgets.todo.locked ? undefined : 'deep'">
-      <div class="widget-brandline">
-        <span class="widget-brand-dot todo-brand-dot"></span>
-        <span>待办</span>
-      <span class="todo-count"><strong>{{ activeCount }}</strong> 项未完成</span>
+  <main
+    class="widget-window todo-widget"
+    :class="[`size-${size}`, { 'widget-draggable': !widget.locked }]"
+    :data-tauri-drag-region="size === 'large' ? undefined : dragRegion"
+    @contextmenu="openContextMenu"
+  >
+    <!-- Small: count and the next few items -->
+    <template v-if="size === 'small'">
+      <div class="todo-glance-head">
+        <span class="todo-glyph"><AppIcon name="tick" :size="14" /></span>
+        <strong class="todo-big-count">{{ activeCount }}</strong>
       </div>
-    </header>
+      <span class="todo-glance-title">待办</span>
+      <ul v-if="glanceTodos.length" class="todo-glance-list" aria-label="待办列表">
+        <li v-for="todo in glanceTodos" :key="todo.id">
+          <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
+          <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
+        </li>
+      </ul>
+      <p v-else class="todo-glance-empty">没有待办事项</p>
+    </template>
 
-    <div class="todo-tabs" role="tablist">
-      <button :class="{ active: filter === 'open' }" role="tab" :aria-selected="filter === 'open'" @click="filter = 'open'">未完成 <span>{{ openTodos.length }}</span></button>
-      <button :class="{ active: filter === 'done' }" role="tab" :aria-selected="filter === 'done'" @click="filter = 'done'">已完成 <span>{{ completedTodos.length }}</span></button>
-    </div>
-
-    <section class="todo-list" aria-label="待办列表">
-      <div v-if="visibleTodos.length === 0" class="todo-empty">
-        <span>{{ filter === 'open' ? '暂无待办' : '暂无已完成事项' }}</span>
-      </div>
-
-      <article v-for="todo in visibleTodos" :key="todo.id" class="todo-item" :class="{ completed: todo.completed }">
-        <button class="todo-check" :aria-label="todo.completed ? '取消完成' : '标记完成'" :aria-pressed="todo.completed" @click="toggle(todo)"><AppIcon v-if="todo.completed" name="check" :size="14" /></button>
-        <div class="todo-item-content">
-          <template v-if="editingId === todo.id">
-            <form class="todo-edit-form" @submit.prevent="commitEdit(todo)" @pointerdown.stop>
-              <input v-model="editTitle" class="todo-edit-title" aria-label="编辑待办内容" maxlength="160" @keydown.esc="editingId = null" />
-              <input v-model="editDueDate" class="todo-edit-date" type="date" aria-label="截止日期" />
-              <button class="todo-save-edit" type="submit" :disabled="savingEditId === todo.id" @click.stop>{{ savingEditId === todo.id ? '保存中…' : '保存' }}</button>
-            </form>
-          </template>
-          <template v-else>
-            <button class="todo-title-button" :title="todo.title" @dblclick="beginEdit(todo)">{{ todo.title }}</button>
-            <span v-if="todo.dueDate" class="todo-due" :class="{ overdue: isOverdue(todo) }">{{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}</span>
-          </template>
+    <!-- Medium: summary beside a short list -->
+    <template v-else-if="size === 'medium'">
+      <div class="todo-medium">
+        <div class="todo-summary">
+          <span class="todo-glyph"><AppIcon name="tick" :size="14" /></span>
+          <div class="todo-summary-count">
+            <strong class="todo-big-count">{{ activeCount }}</strong>
+            <span>{{ countCaption }}</span>
+          </div>
+          <button class="widget-chip todo-add-chip" aria-label="新建待办" @click="openComposer"><AppIcon name="plus" :size="13" />新建</button>
         </div>
-        <button class="todo-more" :aria-label="`编辑 ${todo.title}`" title="编辑" @click="beginEdit(todo)"><AppIcon name="more" :size="16" /></button>
-        <button class="todo-delete" :aria-label="`删除 ${todo.title}`" title="删除" @click="remove(todo)"><AppIcon name="close" :size="14" /></button>
-      </article>
-    </section>
+        <div class="todo-glance-panel">
+          <ul v-if="glanceTodos.length" class="todo-glance-list" aria-label="待办列表">
+            <li v-for="todo in glanceTodos" :key="todo.id">
+              <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
+              <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
+              <span v-if="todo.dueDate" class="todo-due-chip" :class="{ overdue: isOverdue(todo) }">{{ formatDueDate(todo.dueDate) }}</span>
+            </li>
+          </ul>
+          <div v-else class="todo-glance-empty">
+            <span class="todo-empty-mark"><AppIcon name="tick" :size="16" /></span>
+            <span>没有待办事项</span>
+          </div>
+          <span v-if="hiddenCount" class="todo-more-count">还有 {{ hiddenCount }} 项</span>
+        </div>
+      </div>
+    </template>
+
+    <!-- Large: the full list with editing -->
+    <template v-else>
+      <header class="todo-large-header" :class="{ 'widget-header-draggable': !widget.locked }" :data-tauri-drag-region="dragRegion">
+        <span class="todo-glyph"><AppIcon name="tick" :size="14" /></span>
+        <div class="todo-large-heading">
+          <h1>待办</h1>
+          <span>{{ activeCount ? `${activeCount} 项未完成` : "全部完成" }}</span>
+        </div>
+        <button class="widget-icon-button todo-add-button" aria-label="新建待办" title="新建待办" @click="openComposer"><AppIcon name="plus" :size="16" /></button>
+      </header>
+
+      <div class="todo-segmented" role="tablist">
+        <button :class="{ active: filter === 'open' }" role="tab" :aria-selected="filter === 'open'" @click="filter = 'open'">未完成<span>{{ openTodos.length }}</span></button>
+        <button :class="{ active: filter === 'done' }" role="tab" :aria-selected="filter === 'done'" @click="filter = 'done'">已完成<span>{{ completedTodos.length }}</span></button>
+      </div>
+
+      <section class="todo-list" aria-label="待办列表">
+        <div v-if="visibleTodos.length === 0" class="todo-empty">
+          <span class="todo-empty-mark"><AppIcon name="tick" :size="18" /></span>
+          <span>{{ filter === 'open' ? '没有待办事项' : '暂无已完成事项' }}</span>
+          <button v-if="filter === 'open'" class="widget-chip" @click="openComposer"><AppIcon name="plus" :size="13" />新建待办</button>
+        </div>
+
+        <article v-for="todo in visibleTodos" :key="todo.id" class="todo-item" :class="{ completed: todo.completed }">
+          <button class="todo-check" :aria-label="todo.completed ? '取消完成' : '标记完成'" :aria-pressed="todo.completed" @click="toggle(todo)"><AppIcon v-if="todo.completed" name="tick" :size="11" /></button>
+          <div class="todo-item-content">
+            <template v-if="editingId === todo.id">
+              <form class="todo-edit-form" @submit.prevent="commitEdit(todo)" @pointerdown.stop>
+                <input v-model="editTitle" class="todo-edit-title" aria-label="编辑待办内容" maxlength="160" @keydown.esc="editingId = null" />
+                <div class="todo-edit-row">
+                  <input v-model="editDueDate" class="todo-edit-date" type="date" aria-label="截止日期" />
+                  <button class="todo-save-edit" type="submit" :disabled="savingEditId === todo.id" @click.stop>{{ savingEditId === todo.id ? '保存中…' : '保存' }}</button>
+                </div>
+              </form>
+            </template>
+            <template v-else>
+              <button class="todo-title-button" :title="todo.title" @dblclick="beginEdit(todo)">{{ todo.title }}</button>
+              <span v-if="todo.dueDate" class="todo-due" :class="{ overdue: isOverdue(todo) }"><AppIcon name="clock" :size="11" />{{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}</span>
+            </template>
+          </div>
+          <button class="todo-more" :aria-label="`编辑 ${todo.title}`" title="编辑" @click="beginEdit(todo)"><AppIcon name="more" :size="15" /></button>
+          <button class="todo-delete" :aria-label="`删除 ${todo.title}`" title="删除" @click="remove(todo)"><AppIcon name="close" :size="13" /></button>
+        </article>
+      </section>
+    </template>
 
     <DialogRoot :open="composerOpen" @update:open="onComposerOpenChange">
       <DialogPortal>
         <DialogOverlay class="todo-compose-overlay" />
-        <DialogContent class="todo-compose-panel">
+        <DialogContent class="todo-compose-panel" :class="[`size-${size}`, { compact: size !== 'large' }]">
           <header class="todo-compose-header">
             <DialogTitle class="todo-compose-title">新建待办</DialogTitle>
             <DialogClose as-child>
-              <button class="todo-compose-close" type="button" aria-label="关闭新建待办" @click="closeComposer"><AppIcon name="close" :size="16" /></button>
+              <button class="todo-compose-close" type="button" aria-label="关闭新建待办" @click="closeComposer"><AppIcon name="close" :size="15" /></button>
             </DialogClose>
           </header>
           <form class="todo-compose-form" @submit.prevent="addTodo">
             <label class="todo-compose-label" for="todo-create-title">待办内容</label>
             <input id="todo-create-title" ref="composerInput" v-model="draft" class="todo-create-input" placeholder="添加一项待办" maxlength="160" />
-            <label class="todo-compose-label" for="todo-create-date">截止日期</label>
-            <input id="todo-create-date" v-model="dueDate" class="todo-create-date" type="date" />
+            <label v-if="size !== 'small'" class="todo-compose-label" for="todo-create-date">截止日期</label>
             <footer class="todo-compose-actions">
+              <input v-if="size !== 'small'" id="todo-create-date" v-model="dueDate" class="todo-create-date" type="date" />
               <button class="todo-compose-cancel" type="button" @click="closeComposer">取消</button>
               <button class="todo-compose-submit" type="submit" :disabled="!draft.trim()">添加</button>
             </footer>
@@ -266,7 +345,9 @@ onUnmounted(() => {
       <button class="context-primary" @click="openComposer"><AppIcon name="plus" :size="16" />新建待办</button>
       <div class="context-divider"></div>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
-      <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ snapshot.settings.widgets.todo.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
+      <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ widget.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
+      <div class="context-divider"></div>
+      <WidgetSizeMenuRow :size="size" @choose="chooseSize" />
       <div class="context-divider"></div>
       <button class="context-danger" @click="closeWidget"><AppIcon name="close" :size="16" />关闭待办组件</button>
     </div>

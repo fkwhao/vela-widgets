@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind } from "../types";
+import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize } from "../types";
 
 const previewKey = "vela.preview.snapshot.v1";
 
@@ -21,7 +21,11 @@ function readPreview(): AppSnapshot {
           ...parsed.settings,
           widgetTransparency: parsed.settings?.widgetTransparency ?? defaults.settings.widgetTransparency,
           widgetCornerRadius: parsed.settings?.widgetCornerRadius ?? defaults.settings.widgetCornerRadius,
-          widgets: { ...defaults.settings.widgets, ...parsed.settings?.widgets },
+          // Merge per widget so fields added later (such as size) keep their defaults.
+          widgets: {
+            calendar: { ...defaults.settings.widgets.calendar, ...parsed.settings?.widgets?.calendar },
+            todo: { ...defaults.settings.widgets.todo, ...parsed.settings?.widgets?.todo },
+          },
         },
         todos: Array.isArray(parsed.todos) ? parsed.todos : defaults.todos,
       };
@@ -69,6 +73,13 @@ export async function setWidgetLocked(kind: WidgetKind, locked: boolean): Promis
   });
 }
 
+export async function setWidgetSize(kind: WidgetKind, size: WidgetSize): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke<AppSnapshot>("set_widget_size", { kind, size });
+  return updatePreview((snapshot) => {
+    snapshot.settings.widgets[kind].size = size;
+  });
+}
+
 export async function setWeekStartsMonday(monday: boolean): Promise<AppSnapshot> {
   if (isNativeApp()) return invoke<AppSnapshot>("set_week_starts_monday", { monday });
   return updatePreview((snapshot) => {
@@ -103,16 +114,16 @@ export async function setWidgetAppearance(
   });
 }
 
-export async function saveWidgetBounds(
+export async function saveWidgetPosition(
   kind: WidgetKind,
-  bounds: { x: number; y: number; width: number; height: number },
+  position: { x: number; y: number },
 ): Promise<void> {
   if (isNativeApp()) {
-    await invoke("save_widget_bounds", { kind, ...bounds });
+    await invoke("save_widget_position", { kind, ...position });
     return;
   }
   updatePreview((snapshot) => {
-    Object.assign(snapshot.settings.widgets[kind], bounds);
+    Object.assign(snapshot.settings.widgets[kind], position);
   });
 }
 

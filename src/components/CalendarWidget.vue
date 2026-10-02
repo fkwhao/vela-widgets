@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
+import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend";
-import { setWidgetEnabled, setWidgetLayer, snapshot } from "../lib/store";
+import { setWidgetEnabled, setWidgetLayer, setWidgetSize, snapshot } from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
+import type { WidgetSize } from "../types";
 
 interface CalendarCell {
   date: Date;
@@ -11,12 +13,13 @@ interface CalendarCell {
   inMonth: boolean;
 }
 
-const now = new Date();
-const visibleMonth = ref(new Date(now.getFullYear(), now.getMonth(), 1));
-const selectedDate = ref(dateKey(now));
+const today = ref(new Date());
+const visibleMonth = ref(new Date(today.value.getFullYear(), today.value.getMonth(), 1));
+const selectedDate = ref(dateKey(today.value));
 const menu = ref<{ x: number; y: number } | null>(null);
 const notice = ref("");
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
 
 function dateKey(date: Date): string {
   const year = date.getFullYear();
@@ -25,29 +28,62 @@ function dateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const todayKey = dateKey(now);
-const monthLabel = computed(() =>
-  new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(visibleMonth.value),
-);
+function isoWeek(date: Date): number {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil(((target.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+const widget = computed(() => snapshot.value.settings.widgets.calendar);
+const size = computed(() => widget.value.size);
+// Small and medium layouts have no scrolling content, so the whole surface drags.
+const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
+const todayKey = computed(() => dateKey(today.value));
+const weekStartsMonday = computed(() => snapshot.value.settings.weekStartsMonday);
+
 const weekdayLabels = computed(() =>
-  snapshot.value.settings.weekStartsMonday
-    ? ["一", "二", "三", "四", "五", "六", "日"]
-    : ["日", "一", "二", "三", "四", "五", "六"],
+  weekStartsMonday.value ? ["一", "二", "三", "四", "五", "六", "日"] : ["日", "一", "二", "三", "四", "五", "六"],
 );
-const cells = computed<CalendarCell[]>(() => {
-  const first = new Date(visibleMonth.value.getFullYear(), visibleMonth.value.getMonth(), 1);
-  const offset = snapshot.value.settings.weekStartsMonday
-    ? (first.getDay() + 6) % 7
-    : first.getDay();
+
+function monthCells(month: Date, rows: number): CalendarCell[] {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const offset = weekStartsMonday.value ? (first.getDay() + 6) % 7 : first.getDay();
   const start = new Date(first.getFullYear(), first.getMonth(), 1 - offset);
-  return Array.from({ length: 42 }, (_, index) => {
+  return Array.from({ length: rows * 7 }, (_, index) => {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
-    return { date, key: dateKey(date), inMonth: date.getMonth() === visibleMonth.value.getMonth() };
+    return { date, key: dateKey(date), inMonth: date.getMonth() === month.getMonth() };
   });
+}
+
+const cells = computed(() => monthCells(visibleMonth.value, 6));
+// The medium layout always shows the current month and drops trailing empty weeks.
+const todayMonthCells = computed(() => {
+  const month = new Date(today.value.getFullYear(), today.value.getMonth(), 1);
+  const all = monthCells(month, 6);
+  return all.slice(0, all[35].inMonth ? 42 : 35);
 });
-const selectedLabel = computed(() => {
+
+const monthTitle = computed(() => `${visibleMonth.value.getMonth() + 1}月`);
+const yearTitle = computed(() => `${visibleMonth.value.getFullYear()}`);
+const todayWeekday = computed(() => new Intl.DateTimeFormat("zh-CN", { weekday: "long" }).format(today.value));
+const todayMonthLabel = computed(() => `${today.value.getFullYear()}年${today.value.getMonth() + 1}月`);
+const todayWeekLabel = computed(() => `第 ${isoWeek(today.value)} 周`);
+const showingToday = computed(
+  () =>
+    selectedDate.value === todayKey.value &&
+    visibleMonth.value.getFullYear() === today.value.getFullYear() &&
+    visibleMonth.value.getMonth() === today.value.getMonth(),
+);
+
+const selectedSummary = computed(() => {
   const date = new Date(`${selectedDate.value}T12:00:00`);
-  return new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(date);
+  const label = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(date);
+  const base = new Date(`${todayKey.value}T12:00:00`);
+  const days = Math.round((date.getTime() - base.getTime()) / 86400000);
+  const relative = days === 0 ? "今天" : days === 1 ? "明天" : days === -1 ? "昨天" : days > 0 ? `${days} 天后` : `${-days} 天前`;
+  return { label, relative };
 });
 
 function moveMonth(delta: number): void {
@@ -55,28 +91,23 @@ function moveMonth(delta: number): void {
 }
 
 function goToToday(): void {
-  const today = new Date();
-  visibleMonth.value = new Date(today.getFullYear(), today.getMonth(), 1);
-  selectedDate.value = dateKey(today);
+  visibleMonth.value = new Date(today.value.getFullYear(), today.value.getMonth(), 1);
+  selectedDate.value = todayKey.value;
 }
 
 async function openContextMenu(event: MouseEvent): Promise<void> {
   if (isNativeApp()) {
-    const x = Math.max(6, Math.min(event.clientX, window.innerWidth - 194));
-    const y = Math.max(6, Math.min(event.clientY, window.innerHeight - 116));
     try {
-      await showWidgetContextMenu("calendar", x, y);
+      // The native popup clamps itself to the monitor, not to this small window.
+      await showWidgetContextMenu("calendar", event.clientX, event.clientY);
+      return;
     } catch {
-      menu.value = {
-        x: Math.max(6, Math.min(event.clientX, window.innerWidth - 194)),
-        y: Math.max(6, Math.min(event.clientY, window.innerHeight - 116)),
-      };
+      // Fall through to the in-window menu.
     }
-    return;
   }
   menu.value = {
-    x: Math.max(6, Math.min(event.clientX, window.innerWidth - 196)),
-    y: Math.max(6, Math.min(event.clientY, window.innerHeight - 120)),
+    x: Math.max(4, Math.min(event.clientX, window.innerWidth - 192)),
+    y: Math.max(4, Math.min(event.clientY, window.innerHeight - 152)),
   };
 }
 
@@ -88,10 +119,19 @@ function showNotice(message: string): void {
 
 async function toggleLayer(): Promise<void> {
   try {
-    await setWidgetLayer("calendar", !snapshot.value.settings.widgets.calendar.alwaysOnTop);
+    await setWidgetLayer("calendar", !widget.value.alwaysOnTop);
     menu.value = null;
   } catch {
-    showNotice("层级设置暂时没有保存。 ");
+    showNotice("层级设置暂时没有保存。");
+  }
+}
+
+async function chooseSize(next: WidgetSize): Promise<void> {
+  menu.value = null;
+  try {
+    await setWidgetSize("calendar", next);
+  } catch {
+    showNotice("尺寸暂时没有保存。");
   }
 }
 
@@ -99,7 +139,7 @@ async function closeWidget(): Promise<void> {
   try {
     await setWidgetEnabled("calendar", false);
   } catch (error) {
-    showNotice(typeof error === "string" ? error : "没有关闭组件。 ");
+    showNotice(typeof error === "string" ? error : "没有关闭组件。");
   }
   menu.value = null;
 }
@@ -108,65 +148,104 @@ function dismissMenu(): void {
   menu.value = null;
 }
 
+function tickClock(): void {
+  const now = new Date();
+  if (dateKey(now) !== todayKey.value) today.value = now;
+}
+
 useWindowBounds("calendar");
-onMounted(() => window.addEventListener("pointerdown", dismissMenu));
+onMounted(() => {
+  window.addEventListener("pointerdown", dismissMenu);
+  clockTimer = setInterval(tickClock, 60_000);
+});
 onUnmounted(() => {
   window.removeEventListener("pointerdown", dismissMenu);
   if (noticeTimer) clearTimeout(noticeTimer);
+  if (clockTimer) clearInterval(clockTimer);
 });
 </script>
 
 <template>
-  <main class="widget-window calendar-widget" @contextmenu.prevent.stop="openContextMenu">
-    <header class="widget-header" :class="{ 'widget-header-draggable': !snapshot.settings.widgets.calendar.locked }" :data-tauri-drag-region="snapshot.settings.widgets.calendar.locked ? undefined : 'deep'">
-      <div class="widget-brandline">
-        <span class="widget-brand-dot"></span>
-        <span>日历</span>
+  <main
+    class="widget-window calendar-widget"
+    :class="[`size-${size}`, { 'widget-draggable': !widget.locked }]"
+    :data-tauri-drag-region="size === 'large' ? undefined : dragRegion"
+    @contextmenu.prevent.stop="openContextMenu"
+  >
+    <!-- Small: today at a glance -->
+    <template v-if="size === 'small'">
+      <div class="cal-small">
+        <span class="cal-eyebrow">{{ todayWeekday }}</span>
+        <strong class="cal-hero-day">{{ today.getDate() }}</strong>
+        <span class="cal-caption">{{ todayMonthLabel }}</span>
+        <span class="cal-caption subtle">{{ todayWeekLabel }}</span>
       </div>
-      <button class="widget-icon-button today-button" title="回到今天" aria-label="回到今天" @pointerdown.stop @click="goToToday">今天</button>
-    </header>
+    </template>
 
-    <section class="calendar-monthbar">
-      <div class="calendar-month-copy">
-        <h1>{{ monthLabel }}</h1>
-        <span>{{ new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(new Date(`${selectedDate}T12:00:00`)) }} · {{ selectedDate.split('-')[2] }} 日</span>
+    <!-- Medium: today beside the current month -->
+    <template v-else-if="size === 'medium'">
+      <div class="cal-medium">
+        <div class="cal-today-panel">
+          <span class="cal-eyebrow">{{ todayWeekday }}</span>
+          <strong class="cal-hero-day">{{ today.getDate() }}</strong>
+          <span class="cal-caption">{{ todayMonthLabel }}</span>
+          <span class="cal-caption subtle">{{ todayWeekLabel }}</span>
+        </div>
+        <div class="cal-mini-month" aria-label="本月月历">
+          <div class="cal-mini-grid">
+            <span v-for="weekday in weekdayLabels" :key="`w-${weekday}`" class="cal-mini-weekday">{{ weekday }}</span>
+            <span
+              v-for="cell in todayMonthCells"
+              :key="cell.key"
+              class="cal-mini-day"
+              :class="{ outside: !cell.inMonth, today: cell.key === todayKey }"
+            >{{ cell.inMonth ? cell.date.getDate() : "" }}</span>
+          </div>
+        </div>
       </div>
-      <div class="month-actions">
-        <button class="widget-icon-button" aria-label="上个月" @click="moveMonth(-1)"><AppIcon name="chevron-left" :size="16" /></button>
-        <button class="widget-icon-button" aria-label="下个月" @click="moveMonth(1)"><AppIcon name="chevron-right" :size="16" /></button>
-      </div>
-    </section>
+    </template>
 
-    <section class="calendar-grid" aria-label="月历">
-      <div class="weekday-row"><span v-for="weekday in weekdayLabels" :key="weekday">{{ weekday }}</span></div>
-      <div class="date-grid">
-        <button
-          v-for="cell in cells"
-          :key="cell.key"
-          class="date-cell"
-          :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate }"
-          :aria-label="new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date)"
-          :aria-pressed="cell.key === selectedDate"
-          @click="selectedDate = cell.key"
-        >
-          <span>{{ cell.date.getDate() }}</span>
-          <i v-if="cell.key === todayKey" class="today-mark"></i>
-        </button>
-      </div>
-    </section>
+    <!-- Large: the full interactive month -->
+    <template v-else>
+      <header class="cal-large-header" :class="{ 'widget-header-draggable': !widget.locked }" :data-tauri-drag-region="dragRegion">
+        <h1 class="cal-large-title"><span class="accent">{{ monthTitle }}</span><span class="year">{{ yearTitle }}</span></h1>
+        <div class="cal-large-actions">
+          <transition name="fade-chip">
+            <button v-if="!showingToday" class="widget-chip" aria-label="回到今天" @click="goToToday">今天</button>
+          </transition>
+          <button class="widget-icon-button" aria-label="上个月" @click="moveMonth(-1)"><AppIcon name="chevron-left" :size="16" /></button>
+          <button class="widget-icon-button" aria-label="下个月" @click="moveMonth(1)"><AppIcon name="chevron-right" :size="16" /></button>
+        </div>
+      </header>
 
-    <footer class="calendar-footer" aria-label="已选择日期">
-      <div class="selected-date">
-        <span class="selected-date-marker"></span>
-        <strong>{{ selectedLabel }}</strong>
-      </div>
-    </footer>
+      <section class="calendar-grid" aria-label="月历">
+        <div class="weekday-row"><span v-for="weekday in weekdayLabels" :key="weekday">{{ weekday }}</span></div>
+        <div class="date-grid">
+          <button
+            v-for="cell in cells"
+            :key="cell.key"
+            class="date-cell"
+            :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate }"
+            :aria-label="new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date)"
+            :aria-pressed="cell.key === selectedDate"
+            @click="selectedDate = cell.key"
+          ><span>{{ cell.date.getDate() }}</span></button>
+        </div>
+      </section>
+
+      <footer class="calendar-footer" aria-label="已选择日期">
+        <strong>{{ selectedSummary.label }}</strong>
+        <span class="calendar-relative" :class="{ current: selectedSummary.relative === '今天' }">{{ selectedSummary.relative }}</span>
+      </footer>
+    </template>
 
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
     <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
-      <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ snapshot.settings.widgets.calendar.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
+      <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ widget.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
+      <div class="context-divider"></div>
+      <WidgetSizeMenuRow :size="size" @choose="chooseSize" />
       <div class="context-divider"></div>
       <button class="context-danger" @click="closeWidget"><AppIcon name="close" :size="16" />关闭日历组件</button>
     </div>

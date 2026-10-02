@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import * as backend from "./backend";
-import { defaultSnapshot, type AppSnapshot, type ThemeMode, type WidgetKind } from "../types";
+import { defaultSnapshot, type AppSnapshot, type ThemeMode, type WidgetKind, type WidgetSize } from "../types";
 
 export const snapshot = ref<AppSnapshot>(structuredClone(defaultSnapshot));
 export const ready = ref(false);
@@ -31,6 +31,10 @@ export async function setWidgetLayer(kind: WidgetKind, alwaysOnTop: boolean): Pr
 
 export async function setWidgetLocked(kind: WidgetKind, locked: boolean): Promise<void> {
   applySnapshot(await backend.setWidgetLocked(kind, locked));
+}
+
+export async function setWidgetSize(kind: WidgetKind, size: WidgetSize): Promise<void> {
+  applySnapshot(await backend.setWidgetSize(kind, size));
 }
 
 export async function setWeekStartsMonday(monday: boolean): Promise<void> {
@@ -68,9 +72,6 @@ export async function deleteTodo(id: number): Promise<void> {
   applySnapshot(await backend.deleteTodo(id));
 }
 
-export async function saveWidgetBounds(
-  kind: WidgetKind,
-  bounds: { x: number; y: number; width: number; height: number },
-): Promise<void> {
-  await backend.saveWidgetBounds(kind, bounds);
+export async function saveWidgetPosition(kind: WidgetKind, position: { x: number; y: number }): Promise<void> {
+  await backend.saveWidgetPosition(kind, position);
 }
