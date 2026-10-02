@@ -313,3 +313,49 @@
   .manager-page { padding: 24px 24px 32px; }
   .range-control .vela-slider-root { width: 140px; }
 }
+
+.city-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.city-options .selected { color: var(--accent); border-color: var(--accent); background: var(--win-subtle-hover); }
+.settings-section-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 24px; margin-bottom: 8px; }
+.settings-section-heading .section-title { margin: 0; }
+.countdown-editor { gap: 14px; margin-bottom: 8px; align-items: stretch; }
+.countdown-editor > label { display: flex; flex-direction: column; gap: 7px; color: var(--win-text-2); font-size: 12px; }
+.win-text-input { width: 100%; min-height: 34px; padding: 6px 10px; color: var(--win-text); border: 1px solid var(--win-control-stroke); border-bottom-color: var(--win-control-stroke-bottom); border-radius: 4px; background: var(--win-control); font-size: 13px; color-scheme: light; }
+:root[data-theme="dark"] .win-text-input { color-scheme: dark; }
+.win-text-input:focus { outline: none; border-bottom-color: var(--accent); box-shadow: inset 0 -1px 0 var(--accent); }
+.countdown-editor > .inline-check { flex-direction: row; align-items: center; }
+.inline-check input { accent-color: var(--accent); }
+.editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.editor-actions .primary { color: white; background: var(--accent); }
+.card-text strong { overflow-wrap: anywhere; }
+
+/* Note color picker: named presets, an explicit selected mark and a live title preview. */
+.note-color-card { container-type: inline-size; }
+.note-color-current { flex: none; margin-left: auto; color: var(--win-text-2); font-size: 12px; }
+.note-color-layout { display: grid; grid-template-columns: minmax(0, 1fr) 172px; align-items: stretch; gap: 20px; }
+.note-color-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.note-color-option { display: flex; min-width: 0; min-height: 62px; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 4px; color: var(--win-text-2); border: 1px solid transparent; border-radius: 6px; background: transparent; font-size: 11px; cursor: pointer; transition: background .15s, border-color .15s; }
+.note-color-option:hover { color: var(--win-text); background: var(--win-subtle-hover); }
+.note-color-option:active { background: var(--win-subtle-press); }
+.note-color-option.selected { color: var(--win-text); border-color: var(--win-control-stroke-bottom); background: var(--win-control); }
+.note-color-option:disabled { cursor: default; }
+.note-color-dot { display: grid; width: 26px; height: 26px; flex: none; place-items: center; color: white; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--win-control-stroke); }
+.note-color-preview { display: flex; min-width: 0; flex-direction: column; padding: 14px; border: 1px solid var(--wg-stroke); border-radius: 14px; background: rgba(var(--wg-tint), .88); box-shadow: inset 0 1px 0 var(--wg-highlight); }
+.note-color-preview-title { display: flex; align-items: center; gap: 6px; color: color-mix(in srgb, var(--note-preview-color) 86%, black); font-size: 13px; }
+:root[data-theme="dark"] .note-color-preview-title { color: color-mix(in srgb, var(--note-preview-color) 62%, white); }
+.note-preview-edit { margin-left: auto; color: var(--wg-text-3); }
+.note-color-preview p { margin: 13px 0 4px; color: var(--wg-text); font-size: 11px; line-height: 1.6; }
+.note-color-preview > span { color: var(--wg-text-2); font-size: 10px; line-height: 1.6; }
+.note-color-preview small { margin-top: auto; padding-top: 10px; color: var(--wg-text-3); font-size: 9px; }
+@container (max-width: 460px) {
+  .note-color-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .note-color-preview { min-height: 138px; }
+}
+@media (prefers-reduced-motion: reduce) { .note-color-option { transition: none; } }
+
+.note-color-custom { position: relative; overflow: hidden; }
+.note-color-rainbow { background: conic-gradient(#d4484d, #dc812e, #c39a27, #399466, #3b67b8, #805eb2, #c14289, #d4484d); }
+.note-color-rainbow svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.note-color-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.note-color-custom:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.note-color-custom.is-busy, .note-color-custom input:disabled { cursor: default; }

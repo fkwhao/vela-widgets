@@ -14,7 +14,13 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <template v-if="name === 'grid'">
+    <template v-if="name === 'note'">
+      <path d="M5 3.5h14a1.5 1.5 0 0 1 1.5 1.5v10L15 20.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5Z" /><path d="M15 20.5V15h5.5M7.5 8h9M7.5 12h6" />
+    </template>
+    <template v-else-if="name === 'hourglass'">
+      <path d="M6 3.5h12M6 20.5h12M7 3.5v4l5 4.5-5 4v4.5M17 3.5v4L12 12l5 4v4.5M9 18h6" />
+    </template>
+    <template v-else-if="name === 'grid'">
       <rect x="3.5" y="3.5" width="7" height="7" rx="2" />
       <rect x="13.5" y="3.5" width="7" height="7" rx="2" />
       <rect x="3.5" y="13.5" width="7" height="7" rx="2" />
@@ -66,6 +72,9 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
     <template v-else-if="name === 'chevron-right'">
       <path d="m9.5 18 6-6-6-6" />
     </template>
+    <template v-else-if="name === 'chevron-up'">
+      <path d="m6.5 15 5.5-5.5 5.5 5.5" />
+    </template>
     <template v-else-if="name === 'chevron-down'">
       <path d="m6.5 9 5.5 5.5L17.5 9" />
     </template>
@@ -79,6 +88,12 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
       <circle cx="5" cy="12" r="1" fill="currentColor" />
       <circle cx="12" cy="12" r="1" fill="currentColor" />
       <circle cx="19" cy="12" r="1" fill="currentColor" />
+    </template>
+    <template v-else-if="name === 'edit'">
+      <path d="m15 4 5 5M4 20l5-1 11-11a2.2 2.2 0 0 0-5-5L4 15v5Z" />
+    </template>
+    <template v-else-if="name === 'moon'">
+      <path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z" />
     </template>
     <template v-else-if="name === 'clock'">
       <circle cx="12" cy="12" r="9" />

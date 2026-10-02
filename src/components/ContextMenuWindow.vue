@@ -6,7 +6,7 @@ import AppIcon from "./AppIcon.vue";
 import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import { getSnapshot, openManager } from "../lib/backend";
 import { refreshSnapshot, setWidgetEnabled, setWidgetLayer, setWidgetSize } from "../lib/store";
-import type { WidgetKind, WidgetSize } from "../types";
+import { isWidgetKind, widgetRegistry, type WidgetKind, type WidgetSize } from "../types";
 
 const widgetKind = ref<WidgetKind>("calendar");
 const alwaysOnTop = ref(false);
@@ -18,11 +18,7 @@ let unlistenKind: (() => void) | undefined;
 let closeBlockedTimer: ReturnType<typeof setTimeout> | undefined;
 let layerFailedTimer: ReturnType<typeof setTimeout> | undefined;
 
-function isWidgetKind(value: unknown): value is WidgetKind {
-  return value === "calendar" || value === "todo";
-}
-
-const widgetTitle = () => widgetKind.value === "calendar" ? "日历" : "待办";
+const widgetTitle = () => widgetRegistry[widgetKind.value].label;
 
 async function refreshLayerState(): Promise<void> {
   try {

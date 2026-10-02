@@ -5,6 +5,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import CalendarWidget from "./components/CalendarWidget.vue";
 import ContextMenuWindow from "./components/ContextMenuWindow.vue";
 import ManagerView from "./components/ManagerView.vue";
+import ClockWidget from "./components/ClockWidget.vue";
+import NoteWidget from "./components/NoteWidget.vue";
+import CountdownWidget from "./components/CountdownWidget.vue";
 import TodoWidget from "./components/TodoWidget.vue";
 import { openManager } from "./lib/backend";
 import { applySnapshot, refreshSnapshot, snapshot } from "./lib/store";
@@ -85,6 +88,9 @@ onUnmounted(() => {
   <ManagerView v-if="isManager" />
   <CalendarWidget v-else-if="view === 'calendar'" />
   <TodoWidget v-else-if="view === 'todo'" />
+  <ClockWidget v-else-if="view === 'clock'" />
+  <NoteWidget v-else-if="view === 'note'" />
+  <CountdownWidget v-else-if="view === 'countdown'" />
   <ContextMenuWindow v-else-if="view === 'context-menu'" />
   <main v-else class="unknown-view">
     <p>找不到这个 Vela 窗口。</p>

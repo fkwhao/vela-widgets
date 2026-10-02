@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import WidgetPageControls from "./WidgetPageControls.vue";
+import { paginateTodos } from "../lib/todoPages";
 import AppIcon from "./AppIcon.vue";
 import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import {
@@ -46,9 +48,19 @@ const activeCount = computed(() => openTodos.value.length);
 const widget = computed(() => snapshot.value.settings.widgets.todo);
 const size = computed(() => widget.value.size);
 const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
-// Compact layouts show only what fits; the large layout scrolls the full list.
-const glanceTodos = computed(() => openTodos.value.slice(0, size.value === "small" ? 3 : 4));
-const hiddenCount = computed(() => Math.max(0, openTodos.value.length - glanceTodos.value.length));
+const page = ref(0);
+const pageDirection = ref(1);
+const pageSource = computed(() => size.value === "large" ? visibleTodos.value : openTodos.value);
+const pages = computed(() => paginateTodos(pageSource.value, size.value, editingId.value));
+const pageItems = computed(() => pages.value[Math.min(page.value, pages.value.length - 1)] ?? []);
+watch([size, filter], () => { page.value = 0; editingId.value = null; });
+watch(pages, (next) => {
+  if (editingId.value !== null) { const index = next.findIndex(items => items.some(item => item.id === editingId.value)); if (index >= 0) page.value = index; }
+  page.value = Math.min(page.value, next.length - 1);
+});
+function movePage(direction: number) { pageDirection.value = direction; page.value = Math.max(0, Math.min(pages.value.length - 1, page.value + direction)); }
+// Browser previews use the same fixed footprint as native windows.
+const previewSize = computed(() => isNativeApp() ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
 const countCaption = computed(() => (activeCount.value === 0 ? "全部完成" : "项未完成"));
 
 function formatDueDate(value: string | null): string {
@@ -74,6 +86,7 @@ async function addTodo(): Promise<void> {
   if (!draft.value.trim()) return;
   try {
     await createTodo(draft.value, dueDate.value || null);
+    page.value = 0;
     draft.value = "";
     dueDate.value = "";
     composerOpen.value = false;
@@ -222,29 +235,30 @@ onUnmounted(() => {
   <main
     class="widget-window todo-widget"
     :class="[`size-${size}`, { 'widget-draggable': !widget.locked }]"
-    :data-tauri-drag-region="size === 'large' ? undefined : dragRegion"
+    :style="previewSize"
     @contextmenu="openContextMenu"
   >
-    <!-- Small: count and the next few items -->
+    <!-- Small: fixed heading and vertically paged unfinished tasks -->
     <template v-if="size === 'small'">
-      <div class="todo-glance-head">
+      <div class="todo-glance-head" :data-tauri-drag-region="dragRegion">
         <span class="todo-glyph"><AppIcon name="tick" :size="14" /></span>
         <strong class="todo-big-count">{{ activeCount }}</strong>
       </div>
-      <span class="todo-glance-title">待办</span>
-      <ul v-if="glanceTodos.length" class="todo-glance-list" aria-label="待办列表">
-        <li v-for="todo in glanceTodos" :key="todo.id">
+      <span class="todo-glance-title" :data-tauri-drag-region="dragRegion">待办</span>
+      <ul v-if="openTodos.length" class="todo-glance-list todo-page-list" :key="`${size}-${page}`" :data-direction="pageDirection > 0 ? 'down' : 'up'" aria-label="待办列表">
+        <li v-for="todo in pageItems" :key="todo.id">
           <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
           <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
         </li>
       </ul>
       <p v-else class="todo-glance-empty">没有待办事项</p>
+      <WidgetPageControls :page="page" :count="pages.length" @move="movePage" />
     </template>
 
-    <!-- Medium: summary beside a short list -->
+    <!-- Medium: fixed summary beside vertically paged unfinished tasks -->
     <template v-else-if="size === 'medium'">
       <div class="todo-medium">
-        <div class="todo-summary">
+        <div class="todo-summary" :data-tauri-drag-region="dragRegion">
           <span class="todo-glyph"><AppIcon name="tick" :size="14" /></span>
           <div class="todo-summary-count">
             <strong class="todo-big-count">{{ activeCount }}</strong>
@@ -253,18 +267,18 @@ onUnmounted(() => {
           <button class="widget-chip todo-add-chip" aria-label="新建待办" @click="openComposer"><AppIcon name="plus" :size="13" />新建</button>
         </div>
         <div class="todo-glance-panel">
-          <ul v-if="glanceTodos.length" class="todo-glance-list" aria-label="待办列表">
-            <li v-for="todo in glanceTodos" :key="todo.id">
+          <ul v-if="openTodos.length" class="todo-glance-list todo-page-list" :key="`${size}-${page}`" :data-direction="pageDirection > 0 ? 'down' : 'up'" aria-label="待办列表">
+            <li v-for="todo in pageItems" :key="todo.id">
               <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
               <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
               <span v-if="todo.dueDate" class="todo-due-chip" :class="{ overdue: isOverdue(todo) }">{{ formatDueDate(todo.dueDate) }}</span>
             </li>
           </ul>
-          <div v-else class="todo-glance-empty">
+          <WidgetPageControls v-if="openTodos.length" :page="page" :count="pages.length" @move="movePage" />
+          <div v-if="!openTodos.length" class="todo-glance-empty">
             <span class="todo-empty-mark"><AppIcon name="tick" :size="16" /></span>
             <span>没有待办事项</span>
           </div>
-          <span v-if="hiddenCount" class="todo-more-count">还有 {{ hiddenCount }} 项</span>
         </div>
       </div>
     </template>
@@ -285,14 +299,14 @@ onUnmounted(() => {
         <button :class="{ active: filter === 'done' }" role="tab" :aria-selected="filter === 'done'" @click="filter = 'done'">已完成<span>{{ completedTodos.length }}</span></button>
       </div>
 
-      <section class="todo-list" aria-label="待办列表">
+      <section class="todo-list todo-page-list" :key="`large-${page}`" :data-direction="pageDirection > 0 ? 'down' : 'up'" aria-label="待办列表">
         <div v-if="visibleTodos.length === 0" class="todo-empty">
           <span class="todo-empty-mark"><AppIcon name="tick" :size="18" /></span>
           <span>{{ filter === 'open' ? '没有待办事项' : '暂无已完成事项' }}</span>
           <button v-if="filter === 'open'" class="widget-chip" @click="openComposer"><AppIcon name="plus" :size="13" />新建待办</button>
         </div>
 
-        <article v-for="todo in visibleTodos" :key="todo.id" class="todo-item" :class="{ completed: todo.completed }">
+        <article v-for="todo in pageItems" :key="todo.id" class="todo-item" :class="{ completed: todo.completed }">
           <button class="todo-check" :aria-label="todo.completed ? '取消完成' : '标记完成'" :aria-pressed="todo.completed" @click="toggle(todo)"><AppIcon v-if="todo.completed" name="tick" :size="11" /></button>
           <div class="todo-item-content">
             <template v-if="editingId === todo.id">
@@ -313,6 +327,7 @@ onUnmounted(() => {
           <button class="todo-delete" :aria-label="`删除 ${todo.title}`" title="删除" @click="remove(todo)"><AppIcon name="close" :size="13" /></button>
         </article>
       </section>
+      <WidgetPageControls :page="page" :count="pages.length" :editing="editingId !== null" @move="movePage" />
     </template>
 
     <DialogRoot :open="composerOpen" @update:open="onComposerOpenChange">

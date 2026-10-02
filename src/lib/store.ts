@@ -75,3 +75,9 @@ export async function deleteTodo(id: number): Promise<void> {
 export async function saveWidgetPosition(kind: WidgetKind, position: { x: number; y: number }): Promise<void> {
   await backend.saveWidgetPosition(kind, position);
 }
+
+export async function setClockSettings(clock: import("../types").ClockSettings): Promise<void> { applySnapshot(await backend.setClockSettings(clock)); }
+export async function saveNote(text: string): Promise<void> { applySnapshot(await backend.saveNote(text)); }
+export async function setNoteColor(color: string): Promise<void> { applySnapshot(await backend.setNoteColor(color)); }
+export async function saveCountdown(item: Parameters<typeof backend.saveCountdown>[0]): Promise<void> { applySnapshot(await backend.saveCountdown(item)); }
+export async function deleteCountdown(id: number): Promise<void> { applySnapshot(await backend.deleteCountdown(id)); }

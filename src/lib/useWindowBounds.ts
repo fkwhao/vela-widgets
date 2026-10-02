@@ -1,3 +1,4 @@
+import { onUnmounted } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { WidgetKind } from "../types";
 import { isNativeApp } from "./backend";
@@ -21,5 +22,8 @@ export function useWindowBounds(kind: WidgetKind): void {
     }, 450);
   };
 
-  void current.onMoved(save);
+  let disposed = false;
+  let unlisten: (() => void) | undefined;
+  void current.onMoved(save).then((stop) => { if (disposed) stop(); else unlisten = stop; }).catch(() => undefined);
+  onUnmounted(() => { disposed = true; unlisten?.(); if (timer) clearTimeout(timer); });
 }

@@ -1,5 +1,6 @@
+import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize } from "../types";
+import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../types";
 
 const previewKey = "vela.preview.snapshot.v1";
 
@@ -21,13 +22,13 @@ function readPreview(): AppSnapshot {
           ...parsed.settings,
           widgetTransparency: parsed.settings?.widgetTransparency ?? defaults.settings.widgetTransparency,
           widgetCornerRadius: parsed.settings?.widgetCornerRadius ?? defaults.settings.widgetCornerRadius,
+          clock: { ...defaults.settings.clock, ...parsed.settings?.clock },
+          note: { ...defaults.settings.note, ...parsed.settings?.note },
           // Merge per widget so fields added later (such as size) keep their defaults.
-          widgets: {
-            calendar: { ...defaults.settings.widgets.calendar, ...parsed.settings?.widgets?.calendar },
-            todo: { ...defaults.settings.widgets.todo, ...parsed.settings?.widgets?.todo },
-          },
+          widgets: Object.fromEntries(widgetKinds.map((kind) => [kind, { ...defaults.settings.widgets[kind], ...parsed.settings?.widgets?.[kind] }])) as AppSnapshot["settings"]["widgets"],
         },
         todos: Array.isArray(parsed.todos) ? parsed.todos : defaults.todos,
+        countdowns: Array.isArray(parsed.countdowns) ? parsed.countdowns : [],
       };
     }
   } catch {
@@ -53,7 +54,10 @@ export async function getSnapshot(): Promise<AppSnapshot> {
 }
 
 export async function setWidgetEnabled(kind: WidgetKind, enabled: boolean): Promise<AppSnapshot> {
-  if (isNativeApp()) return invoke<AppSnapshot>("set_widget_enabled", { kind, enabled });
+  if (isNativeApp()) {
+    if (kind === "note" && !enabled) await flushNativeNote();
+    return invoke<AppSnapshot>("set_widget_enabled", { kind, enabled });
+  }
   return updatePreview((snapshot) => {
     snapshot.settings.widgets[kind].enabled = enabled;
   });
@@ -185,6 +189,46 @@ export async function showWidgetContextMenu(
 }
 
 export async function exitVela(): Promise<void> {
-  if (isNativeApp()) await invoke("exit_vela");
+  if (isNativeApp()) { if ((await getSnapshot()).settings.widgets.note.enabled) await flushNativeNote(); await invoke("exit_vela"); }
   else window.close();
+}
+
+export async function setClockSettings(clock: ClockSettings): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("set_clock_settings", { clock });
+  return updatePreview((s) => { s.settings.clock = clock; });
+}
+export async function saveNote(text: string): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("save_note", { text });
+  return updatePreview((s) => { s.settings.note.text = text; });
+}
+export async function setNoteColor(color: string): Promise<AppSnapshot> {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error("请选择有效的颜色。");
+  color = color.toLowerCase();
+  if (isNativeApp()) return invoke("set_note_color", { color });
+  return updatePreview((s) => { s.settings.note.color = color; });
+}
+export async function saveCountdown(item: Omit<CountdownItem, "id" | "createdDate"> & { id: number | null; createdDate: string }): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("save_countdown", { item });
+  return updatePreview((s) => {
+    if (item.id !== null) { const current = s.countdowns.find((c) => c.id === item.id); if (current) Object.assign(current, item); }
+    else s.countdowns.push({ ...item, id: Date.now() });
+  });
+}
+export async function deleteCountdown(id: number): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("delete_countdown", { id });
+  return updatePreview((s) => { s.countdowns = s.countdowns.filter((c) => c.id !== id); });
+}
+
+async function flushNativeNote(): Promise<void> {
+  const requestId = crypto.randomUUID();
+  let unlisten: (() => void) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error("便签尚未保存，请稍后再试。")), 5000);
+      void listen<{ requestId: string; ok: boolean }>("vela://note-flushed", ({ payload }) => {
+        if (payload.requestId === requestId) payload.ok ? resolve() : reject(new Error("请先保存便签再关闭。"));
+      }).then((stop) => { unlisten = stop; return emitTo("note", "vela://note-flush", { requestId }); }).catch(reject);
+    });
+  } finally { if (timer) clearTimeout(timer); unlisten?.(); }
 }

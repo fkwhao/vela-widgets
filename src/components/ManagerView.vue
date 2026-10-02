@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import WidgetPreferences from "./WidgetPreferences.vue";
 import AppIcon from "./AppIcon.vue";
 import WidgetThemePreview from "./WidgetThemePreview.vue";
 import VelaSelect from "./VelaSelect.vue";
@@ -17,7 +18,7 @@ import {
   snapshot,
   storeError,
 } from "../lib/store";
-import { widgetSizeOptions } from "../types";
+import { widgetSizeOptions, widgetKinds, widgetRegistry, isWidgetKind } from "../types";
 import type { ThemeMode, WidgetKind } from "../types";
 
 const search = ref("");
@@ -39,8 +40,7 @@ watch(
 const navGroups = [
   [
     { id: "home", label: "我的组件", icon: "grid" },
-    { id: "calendar", label: "日历", icon: "calendar" },
-    { id: "todo", label: "待办", icon: "check" },
+    ...widgetKinds.map((kind) => ({ id: kind, label: widgetRegistry[kind].label, icon: widgetRegistry[kind].icon })),
   ],
   [
     { id: "appearance", label: "外观", icon: "sun" },
@@ -49,11 +49,7 @@ const navGroups = [
   ],
 ];
 
-const widgetKinds = ["calendar", "todo"] as const;
-const widgetMeta: Record<WidgetKind, { label: string; icon: string; description: string }> = {
-  calendar: { label: "日历", icon: "calendar", description: "在桌面上查看日期与月历" },
-  todo: { label: "待办", icon: "check", description: "记录要做的事，完成后随手勾选" },
-};
+const widgetMeta = widgetRegistry;
 
 const themeOptions = [
   { id: "light", label: "浅色" },
@@ -85,7 +81,7 @@ const visibleGroups = computed(() => {
     .filter((group) => group.length > 0);
 });
 const settingKind = computed<WidgetKind | null>(() =>
-  activePage.value === "calendar" || activePage.value === "todo" ? activePage.value : null,
+  isWidgetKind(activePage.value) ? activePage.value : null,
 );
 const currentWidget = computed(() =>
   settingKind.value ? snapshot.value.settings.widgets[settingKind.value] : null,
@@ -182,6 +178,7 @@ onUnmounted(() => {
             v-for="item in group"
             :key="item.id"
             class="nav-item"
+            :aria-label="item.label"
             :class="{ active: activePage === item.id }"
             :aria-current="activePage === item.id ? 'page' : undefined"
             @click="activePage = item.id"
@@ -285,6 +282,8 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+
+            <WidgetPreferences :key="settingKind" :kind="settingKind" />
 
             <template v-if="settingKind === 'calendar'">
               <h2 class="section-title">日历</h2>
@@ -402,7 +401,7 @@ onUnmounted(() => {
                 <AppIcon class="card-icon" name="database" :size="18" />
                 <div class="card-text">
                   <strong>数据保存在这台电脑上</strong>
-                  <span>待办和设置只存储在本机，不会上传到任何服务器</span>
+                  <span>便签、待办、重要日子和设置只存储在本机，不会上传到任何服务器</span>
                 </div>
               </div>
             </div>
@@ -416,7 +415,7 @@ onUnmounted(() => {
                   <span>关闭所有桌面组件并停止后台运行</span>
                 </div>
                 <div class="card-control">
-                  <button class="win-button" @click="void exitVela()">退出</button>
+                  <button class="win-button" @click="run(exitVela)">退出</button>
                 </div>
               </div>
             </div>

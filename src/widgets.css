@@ -249,7 +249,7 @@
 }
 .todo-check:hover { border-color: var(--accent); box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .todo-item.completed .todo-check { border-color: var(--accent); background: var(--accent); box-shadow: none; }
-.todo-glance-list { display: grid; min-width: 0; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.todo-glance-list { display: grid; min-width: 0; min-height: 0; flex: 1; align-content: start; grid-auto-rows: max-content; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .todo-glance-list li { display: flex; min-width: 0; min-height: 26px; align-items: center; gap: 8px; }
 .todo-glance-list .todo-check { width: 16px; height: 16px; }
 .todo-glance-text { min-width: 0; flex: 1; overflow: hidden; color: var(--wg-text); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -258,25 +258,24 @@
 
 /* To-do · small */
 .todo-widget.size-small { padding: 14px 14px 12px; }
-.todo-glance-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.todo-glance-head { display: flex; flex-shrink: 0; align-items: flex-start; justify-content: space-between; }
 .todo-glance-head .todo-big-count { margin-top: -3px; }
-.todo-glance-title { margin: 3px 0 7px; color: var(--wg-accent-text); font-size: 13px; font-weight: 650; }
+.todo-glance-title { flex-shrink: 0; margin: 3px 0 7px; color: var(--wg-accent-text); font-size: 13px; font-weight: 650; }
 .size-small .todo-glance-list { gap: 0; }
 .size-small .todo-glance-list li { min-height: 25px; }
 
 /* To-do · medium */
-.todo-medium { display: grid; height: 100%; grid-template-columns: 104px minmax(0, 1fr); gap: 14px; }
+.todo-medium { display: grid; min-height: 0; height: 100%; grid-template-rows: minmax(0, 1fr); grid-template-columns: 104px minmax(0, 1fr); gap: 14px; }
 .todo-summary { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; padding-right: 14px; border-right: 1px solid var(--wg-divider); }
 .todo-summary-count { display: grid; gap: 4px; margin-top: 12px; }
 .todo-summary-count span { color: var(--wg-text-2); font-size: 12px; }
 .todo-add-chip { margin-top: auto; }
-.todo-glance-panel { display: flex; min-width: 0; flex-direction: column; }
+.todo-glance-panel { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
 .todo-glance-panel .todo-glance-list li { min-height: 31px; border-bottom: 1px solid var(--wg-divider); }
 .todo-glance-panel .todo-glance-list li:last-child { border-bottom: 0; }
 .todo-glance-panel .todo-glance-empty { display: grid; height: 100%; place-content: center; justify-items: center; gap: 8px; margin: 0; }
 .todo-due-chip { flex: none; padding: 1px 6px; color: var(--wg-text-2); border-radius: 99px; background: var(--wg-fill); font-size: 10.5px; font-weight: 600; }
 .todo-due-chip.overdue { color: var(--wg-danger); background: color-mix(in srgb, var(--wg-danger) 13%, transparent); }
-.todo-more-count { margin-top: auto; color: var(--wg-text-3); font-size: 11px; }
 
 /* To-do · large */
 .todo-large-header { display: flex; flex: none; align-items: center; gap: 10px; margin: 0 -4px 12px 0; }
@@ -438,3 +437,141 @@
 @media (prefers-reduced-motion: reduce) {
   .widget-window *, .todo-compose-panel * { transition: none !important; }
 }
+
+/* Clock, note and countdown share the established material and neutral palette. */
+.extra-header { display: flex; flex: none; min-height: 28px; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.extra-header h1 { margin: 0; font-size: 17px; font-weight: 650; }
+.extra-eyebrow { display: block; overflow: hidden; color: var(--wg-accent-text); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.extra-caption { color: var(--wg-text-2); font-size: 11px; line-height: 1.5; }
+.extra-muted { color: var(--wg-text-3); font-size: 10.5px; }
+.extra-empty-caption { margin: auto 0; color: var(--wg-text-3); font-size: 11px; line-height: 1.8; text-align: center; }
+.extra-empty { display: flex; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.extra-empty p { margin: 6px 0; color: var(--wg-text-2); font-size: 12px; }
+.extra-notice { position: absolute; z-index: 25; right: 8px; bottom: 8px; left: 8px; margin: 0; padding: 8px; color: var(--wg-danger); border: 1px solid var(--wg-stroke); border-radius: 8px; background: rgba(var(--wg-tint), .98); font-size: 11px; }
+.clock-digital { display: flex; height: 100%; min-height: 0; }
+.clock-local { display: flex; min-width: 0; flex: 1; flex-direction: column; justify-content: center; }
+.clock-local .extra-eyebrow { margin-bottom: auto; }
+.clock-local .extra-caption { margin-top: auto; }
+.clock-time { display: block; font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-size: 43px; font-weight: 300; line-height: 1.4; letter-spacing: -.04em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.clock-time.with-seconds { font-size: 30px; }
+.clock-time.hour-12 { font-size: 31px; }
+.clock-time.hour-12.with-seconds { font-size: 24px; }
+.clock-split { gap: 18px; }
+.clock-split .clock-local { flex: 0 0 136px; border-right: 1px solid var(--wg-divider); padding-right: 10px; }
+.clock-split .clock-time { font-size: 39px; }
+.clock-split .clock-time.with-seconds, .clock-split .clock-time.hour-12 { font-size: 28px; }
+.clock-split .clock-time.hour-12.with-seconds { font-size: 22px; }
+.clock-cities { display: flex; min-width: 0; flex: 1; flex-direction: column; justify-content: center; gap: 12px; }
+.clock-city { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+.clock-city > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.clock-city span { color: var(--wg-text); font-size: 12px; }
+.clock-city small { display: flex; align-items: center; gap: 4px; color: var(--wg-text-3); font-size: 10px; }
+.clock-city strong { color: var(--wg-text); font-size: 17px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.clock-face { position: relative; width: 174px; height: 174px; flex: none; align-self: center; border: 1px solid var(--wg-divider); border-radius: 50%; background: var(--wg-fill); }
+.clock-tick { position: absolute; inset: 8px; }
+.clock-tick::before { position: absolute; left: calc(50% - 1px); width: 2px; height: 6px; border-radius: 2px; background: var(--wg-text-4); content: ""; }
+.clock-face-label { position: absolute; color: var(--wg-text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.clock-face-label.twelve { top: 19px; left: 50%; transform: translateX(-50%); }
+.clock-face-label.six { bottom: 19px; left: 50%; transform: translateX(-50%); }
+.clock-face-label.three { top: 50%; right: 22px; transform: translateY(-50%); }
+.clock-face-label.nine { top: 50%; left: 22px; transform: translateY(-50%); }
+.clock-hand { position: absolute; z-index: 1; bottom: 50%; left: calc(50% - 2px); width: 4px; border-radius: 5px; background: var(--wg-text); transform-origin: 50% 100%; }
+.clock-hand.hour { height: 39px; }
+.clock-hand.minute { height: 58px; width: 3px; left: calc(50% - 1.5px); }
+.clock-hand.second { height: 64px; width: 1px; left: calc(50% - .5px); background: var(--wg-accent-text); }
+.clock-pin { position: absolute; z-index: 2; top: calc(50% - 4px); left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--wg-accent-text); }
+.clock-large-date { margin: 10px 0 12px; text-align: center; }
+.clock-cities.large { justify-content: flex-start; gap: 8px; overflow-y: auto; border-top: 1px solid var(--wg-divider); padding-top: 10px; }
+.note-title { display: flex; align-items: center; gap: 6px; color: color-mix(in srgb, var(--note-color) 86%, black); }
+:root[data-theme="dark"] .note-title { color: color-mix(in srgb, var(--note-color) 62%, white); }
+.note-window .extra-header { margin-bottom: 6px; }
+.note-content { display: block; width: 100%; min-height: 0; flex: 1; overflow-y: auto; padding: 0; color: var(--wg-text); border: 0; background: transparent; text-align: left; font-size: 13px; line-height: 1.85; user-select: text; cursor: text; overflow-wrap: anywhere; scrollbar-width: thin; }
+.note-line { display: block; white-space: pre-wrap; }
+.note-line.bullet { position: relative; padding-left: 13px; }
+.note-line.bullet::before { position: absolute; left: 0; color: var(--wg-text-3); content: "•"; }
+.note-content.empty { color: var(--wg-text-3); }
+.note-content.empty small { display: block; margin-top: 5px; font-size: 11px; }
+/* Notes use a quiet 4px scroll thumb; to-do lists use vertical pagination. */
+.note-content, .note-editor {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--wg-text-4) transparent;
+}
+.note-line { flex-shrink: 0; }
+@supports selector(::-webkit-scrollbar) {
+  .note-content, .note-editor { scrollbar-width: auto; scrollbar-color: auto; }
+}
+.note-content::-webkit-scrollbar, .note-editor::-webkit-scrollbar { width: 4px; }
+.note-content::-webkit-scrollbar-track, .note-editor::-webkit-scrollbar-track { background: transparent; }
+.note-content::-webkit-scrollbar-thumb, .note-editor::-webkit-scrollbar-thumb { min-height: 24px; border-radius: 4px; background: var(--wg-text-4); }
+.note-content::-webkit-scrollbar-thumb:hover, .note-editor::-webkit-scrollbar-thumb:hover { background: var(--wg-text-3); }
+.note-editor { width: 100%; min-height: 0; flex: 1; resize: none; padding: 4px 5px; color: var(--wg-text); border: 1px solid var(--wg-control-stroke); border-bottom: 2px solid var(--wg-accent-text); border-radius: 4px; outline: none; background: var(--wg-control); font-size: 13px; line-height: 1.7; user-select: text; }
+.note-toolbar { display: flex; flex: none; align-items: center; gap: 6px; margin: 0 0 8px; }
+.note-toolbar .extra-muted { margin-left: auto; }
+.note-footer { display: flex; flex: none; align-items: center; justify-content: space-between; padding-top: 7px; }
+.note-save-status { padding: 0; color: var(--wg-text-3); border: 0; background: transparent; font-size: 10.5px; cursor: pointer; }
+.countdown-compact { display: flex; flex: 1; min-height: 0; }
+.countdown-hero { display: flex; width: 100%; min-width: 0; flex-direction: column; }
+.countdown-number { margin: auto 0; color: var(--wg-text); font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-size: 58px; font-weight: 300; line-height: 1.15; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.countdown-number small { margin-left: 5px; color: var(--wg-text-3); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.countdown-number.long-number { font-size: 36px; }
+.countdown-empty-number { color: var(--wg-text-4); font-size: 46px; font-weight: 300; line-height: 1.1; }
+.countdown-hero > .extra-muted { margin-top: 2px; }
+.countdown-compact.split { gap: 16px; }
+.countdown-compact.split .countdown-hero { flex: 0 0 126px; padding-right: 10px; border-right: 1px solid var(--wg-divider); }
+.countdown-secondary { display: flex; min-width: 0; flex: 1; flex-direction: column; justify-content: center; gap: 12px; }
+.countdown-mini { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.countdown-mini > span { display: block; min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.countdown-mini small { display: block; margin-top: 3px; color: var(--wg-text-3); font-size: 10px; font-weight: 400; }
+.countdown-mini strong { font-size: 22px; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.countdown-mini strong small { display: inline; margin-left: 3px; }
+.countdown-list { min-height: 0; flex: 1; overflow: hidden; }
+.countdown-row { height: 82px; padding: 10px 0; border-bottom: 1px solid var(--wg-divider); }
+.countdown-window .todo-pagination { margin-top: 4px; }
+.countdown-window.size-small .todo-pagination { min-height: 20px; }
+.countdown-window.size-small .todo-page-actions .widget-icon-button { width: 20px; height: 20px; }
+.countdown-window.size-small:has(.todo-pagination) .countdown-number { font-size: 44px; }
+.countdown-window.size-small:has(.todo-pagination) .countdown-number.long-number { font-size: 32px; }
+.countdown-window.size-medium:has(.todo-pagination) .countdown-number { font-size: 46px; }
+.countdown-window.size-medium:has(.todo-pagination) .countdown-number.long-number { font-size: 36px; }
+.countdown-hero > * { flex-shrink: 0; }
+.countdown-row-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.countdown-row-title > strong { min-width: 0; overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.countdown-row-title > span { color: var(--wg-text-2); font-size: 10px; white-space: nowrap; }
+.countdown-row-title b { margin: 0 3px; color: var(--wg-accent-text); font-size: 24px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.countdown-row-meta { display: flex; justify-content: space-between; margin-top: 4px; color: var(--wg-text-3); font-size: 10px; }
+.countdown-progress { height: 3px; margin-top: 10px; overflow: hidden; border-radius: 9px; background: var(--wg-fill-hover); }
+.countdown-progress i { display: block; height: 100%; border-radius: inherit; background: var(--wg-accent-text); }
+@media (prefers-reduced-motion: reduce) { .clock-hand { transition: none; } }
+
+/* All three city rows fit the large preset without a permanent scrollbar. */
+.clock-window.size-large .clock-face { width: 164px; height: 164px; }
+.clock-window.size-large .clock-cities { gap: 6px; }
+.clock-window.size-large .clock-city { min-height: 26px; }
+.clock-window.size-large .clock-city span { font-size: 11px; line-height: 1.25; }
+.clock-window.size-large .clock-city small { font-size: 9px; line-height: 1.25; }
+.clock-window.size-large .clock-city strong { font-size: 16px; }
+
+.note-content { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
+.note-content.empty { justify-content: center; }
+
+/* To-do pages stay still; up/down controls replace scrolling in every preset. */
+.todo-list, .todo-glance-list { overflow: hidden; scrollbar-width: none; }
+.todo-pagination { display: flex; min-height: 24px; flex: none; align-items: center; justify-content: space-between; gap: 8px; color: var(--wg-text-3); }
+.todo-page-number { font-size: 10px; font-variant-numeric: tabular-nums; }
+.todo-page-actions { display: flex; gap: 4px; }
+.todo-page-actions .widget-icon-button { width: 22px; height: 22px; border-radius: 5px; }
+.todo-page-actions .widget-icon-button:disabled { color: var(--wg-text-4); cursor: default; background: transparent; }
+.todo-widget.size-small .todo-glance-head { height: 30px; }
+.todo-widget.size-small .todo-glance-head .todo-big-count { margin: 0; font-size: 30px; line-height: 30px; }
+.todo-widget.size-small .todo-glance-title { margin: 2px 0 4px; line-height: 16px; }
+.todo-widget.size-small .todo-glance-list li { min-height: 24px; }
+.todo-widget.size-small .todo-pagination { min-height: 20px; }
+.todo-widget.size-small .todo-page-actions .widget-icon-button { width: 20px; height: 20px; }
+.todo-glance-panel .todo-glance-list li { min-height: 28px; }
+
+.todo-page-list { animation: todo-page-in .15s ease-out; }
+.todo-page-list[data-direction="up"] { --todo-page-from: -8px; }
+@keyframes todo-page-in { from { opacity: .35; transform: translateY(var(--todo-page-from, 8px)); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .todo-page-list { animation: none; } }

@@ -2,6 +2,15 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "widget-drag",
   "description": "Allows desktop widgets to start native window dragging",
-  "windows": ["calendar", "todo"],
-  "permissions": ["core:window:allow-start-dragging", "core:window:allow-set-focus"]
+  "windows": [
+    "calendar",
+    "todo",
+    "clock",
+    "note",
+    "countdown"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-focus"
+  ]
 }

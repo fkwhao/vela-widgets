@@ -1,17 +1,58 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, mem::size_of, path::PathBuf, sync::Mutex, thread, time::Duration};
+use std::{
+    collections::HashMap, fs, mem::size_of, path::PathBuf, sync::Mutex, thread, time::Duration,
+};
 use tauri::{
-    utils::config::WindowEffectsConfig,
-    window::Effect,
-    webview::WebviewWindowBuilder,
-    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewUrl, WindowEvent,
+    utils::config::WindowEffectsConfig, webview::WebviewWindowBuilder, window::Effect, AppHandle,
+    Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewUrl, WindowEvent,
 };
 
 #[cfg(target_os = "windows")]
 mod native_surface;
 
-const WIDGET_KINDS: [&str; 2] = ["calendar", "todo"];
+mod extras;
+use extras::{ClockSettings, CountdownItem, NoteSettings};
+const WIDGET_KINDS: [&str; 5] = ["calendar", "todo", "clock", "note", "countdown"];
+struct WidgetDefinition {
+    kind: &'static str,
+    title: &'static str,
+    default_size: &'static str,
+}
+const WIDGET_REGISTRY: [WidgetDefinition; 5] = [
+    WidgetDefinition {
+        kind: "calendar",
+        title: "日历",
+        default_size: "large",
+    },
+    WidgetDefinition {
+        kind: "todo",
+        title: "待办",
+        default_size: "medium",
+    },
+    WidgetDefinition {
+        kind: "clock",
+        title: "时钟",
+        default_size: "small",
+    },
+    WidgetDefinition {
+        kind: "note",
+        title: "便签",
+        default_size: "medium",
+    },
+    WidgetDefinition {
+        kind: "countdown",
+        title: "倒数日",
+        default_size: "small",
+    },
+];
+fn widget_title(kind: &str) -> &str {
+    WIDGET_REGISTRY
+        .iter()
+        .find(|definition| definition.kind == kind)
+        .map(|definition| definition.title)
+        .unwrap_or("Vela")
+}
 const SNAPSHOT_UPDATED_EVENT: &str = "vela://snapshot-updated";
 const CONTEXT_MENU_WIDTH: f64 = 188.0;
 // Size picker row (31px) plus its divider (7px) on top of the base items.
@@ -73,6 +114,10 @@ pub struct Settings {
     #[serde(default = "default_widget_corner_radius")]
     pub widget_corner_radius: u8,
     pub week_starts_monday: bool,
+    #[serde(default)]
+    pub clock: ClockSettings,
+    #[serde(default)]
+    pub note: NoteSettings,
     pub widgets: HashMap<String, WidgetSettings>,
 }
 
@@ -91,38 +136,31 @@ pub struct TodoItem {
 pub struct AppSnapshot {
     pub settings: Settings,
     pub todos: Vec<TodoItem>,
+    pub countdowns: Vec<CountdownItem>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         let mut widgets = HashMap::new();
-        widgets.insert(
-            "calendar".to_string(),
-            WidgetSettings {
-                enabled: true,
-                always_on_top: false,
-                locked: false,
-                x: None,
-                y: None,
-                width: 364.0,
-                height: 384.0,
-                size: "large".to_string(),
-            },
-        );
-        widgets.insert(
-            "todo".to_string(),
-            WidgetSettings {
-                enabled: false,
-                always_on_top: false,
-                locked: false,
-                x: None,
-                y: None,
-                width: 364.0,
-                height: 170.0,
-                size: "medium".to_string(),
-            },
-        );
+        for definition in &WIDGET_REGISTRY {
+            let (width, height) = widget_dimensions(definition.default_size);
+            widgets.insert(
+                definition.kind.into(),
+                WidgetSettings {
+                    enabled: definition.kind == "calendar",
+                    always_on_top: false,
+                    locked: false,
+                    x: None,
+                    y: None,
+                    width,
+                    height,
+                    size: definition.default_size.into(),
+                },
+            );
+        }
         Self {
+            clock: ClockSettings::default(),
+            note: NoteSettings::default(),
             theme: "light".to_string(),
             accent_color: "#3b67b8".to_string(),
             widget_transparency: default_widget_transparency(),
@@ -191,6 +229,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
             [document],
         )?;
     }
+    extras::initialize(connection)?;
     Ok(())
 }
 
@@ -202,9 +241,14 @@ fn read_settings(connection: &Connection) -> rusqlite::Result<Settings> {
             |row| row.get(0),
         )
         .optional()?;
-    Ok(document
+    let mut settings = document
         .and_then(|value| serde_json::from_str::<Settings>(&value).ok())
-        .unwrap_or_default())
+        .unwrap_or_default();
+    // Preserve existing data while supplying disabled defaults for new widgets.
+    for (kind, widget) in Settings::default().widgets {
+        settings.widgets.entry(kind).or_insert(widget);
+    }
+    Ok(settings)
 }
 
 fn write_settings(connection: &Connection, settings: &Settings) -> rusqlite::Result<()> {
@@ -239,6 +283,7 @@ fn read_snapshot(connection: &Connection) -> rusqlite::Result<AppSnapshot> {
     Ok(AppSnapshot {
         settings: read_settings(connection)?,
         todos: read_todos(connection)?,
+        countdowns: extras::read_countdowns(connection)?,
     })
 }
 
@@ -342,11 +387,7 @@ fn create_widget_window(
         return Ok(());
     }
 
-    let title = if kind == "calendar" {
-        "日历"
-    } else {
-        "待办"
-    };
+    let title = widget_title(kind);
     let url = WebviewUrl::App(format!("index.html?view={kind}").into());
     let data_directory = webview_data_path(app)?;
     let (width, height) = widget_dimensions(&settings.size);
@@ -679,7 +720,12 @@ async fn set_widget_enabled(
         let widget = settings.widgets.get(&kind).expect("validated widget kind");
         create_widget_window(&app, &kind, widget, &settings)
     } else if let Some(window) = app.get_webview_window(&kind) {
-        window.close().map_err(|error| error.to_string())
+        // Note close requests first flush the editor; destroy avoids re-entering that guard.
+        if kind == "note" {
+            window.destroy().map_err(|error| error.to_string())
+        } else {
+            window.close().map_err(|error| error.to_string())
+        }
     } else {
         Ok(())
     };
@@ -767,7 +813,9 @@ async fn set_widget_size(
             .set_size(tauri::LogicalSize::new(width, height))
             .map_err(|error| error.to_string())?;
         // Growing near a screen edge would push the widget off the monitor.
-        if let (Ok(position), Ok(Some(monitor))) = (window.outer_position(), window.current_monitor()) {
+        if let (Ok(position), Ok(Some(monitor))) =
+            (window.outer_position(), window.current_monitor())
+        {
             let scale = window.scale_factor().map_err(|error| error.to_string())?;
             let origin = monitor.position();
             let monitor_size = monitor.size();
@@ -1014,6 +1062,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() == "note" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.emit("vela://note-close-requested", ());
+                }
+            }
             if WIDGET_KINDS.contains(&window.label())
                 && matches!(
                     event,
@@ -1093,6 +1147,11 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            extras::set_clock_settings,
+            extras::save_note,
+            extras::set_note_color,
+            extras::save_countdown,
+            extras::delete_countdown,
             get_snapshot,
             get_context_menu_widget,
             show_manager,
