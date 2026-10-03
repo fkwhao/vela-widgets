@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { listen } from "@tauri-apps/api/event";
+import { isNativeApp } from "../lib/backend";
 import AppIcon from "./AppIcon.vue";
 import { snapshot, setCalendarSettings, checkHolidayUpdates } from "../lib/store";
 import type { CalendarSettings } from "../types";
@@ -8,6 +10,16 @@ const cache = computed(() => snapshot.value.holidays);
 const busy = ref(false);
 const message = ref("");
 const error = ref("");
+let resultSession = 0;
+let disposed = false;
+let unlistenClosed: (() => void) | undefined;
+function clearResult() { resultSession++; message.value = ""; error.value = ""; }
+onMounted(() => {
+  if (isNativeApp()) void listen("vela://manager-closed", clearResult).then(unlisten => {
+    if (disposed) unlisten(); else unlistenClosed = unlisten;
+  });
+});
+onUnmounted(() => { disposed = true; clearResult(); unlistenClosed?.(); });
 const controls: { key: keyof CalendarSettings; label: string; description: string }[] = [
   { key: "showHolidays", label: "显示节假日", description: "显示中国大陆官方放假安排" },
   { key: "showWorkdays", label: "显示调休", description: "标记节假日调休的上班日期" },
@@ -23,11 +35,14 @@ async function toggle(key: keyof CalendarSettings) {
 }
 async function check() {
   busy.value = true; error.value = ""; message.value = "";
+  const session = resultSession;
   const revision = cache.value.data.revision;
   try {
     await checkHolidayUpdates();
-    if (!cache.value.lastError) message.value = cache.value.data.revision > revision ? "节假日数据已更新，桌面日历已同步。" : "已是最新的节假日数据。";
-  } catch (e) { error.value = typeof e === "string" ? e : "检查没有完成，请重试。"; }
+    if (session !== resultSession) return;
+    if (cache.value.lastError) error.value = cache.value.lastError;
+    else message.value = cache.value.data.revision > revision ? "节假日数据已更新，桌面日历已同步。" : "已是最新的节假日数据。";
+  } catch (e) { if (session === resultSession) error.value = typeof e === "string" ? e : "检查没有完成，请重试。"; }
   finally { busy.value = false; }
 }
 </script>
@@ -52,8 +67,8 @@ async function check() {
         <button class="win-button" :disabled="busy" @click="check">{{ busy ? '请稍候…' : '立即检查' }}</button>
       </div>
       <div class="holiday-data-details"><span>最近检查：{{ timeLabel(cache.lastAttemptAt) }}</span><span v-if="cache.lastUpdatedAt">最近更新：{{ timeLabel(cache.lastUpdatedAt) }}</span></div>
-      <div v-if="cache.lastError || error" class="info-bar" role="alert">{{ error || cache.lastError }}</div>
-      <div v-else-if="message" class="info-bar" role="status">{{ message }}</div>
+      <div v-if="error" class="info-bar" role="alert">{{ error }}</div>
+      <div v-else-if="message" class="info-bar success" role="status">{{ message }}</div>
     </div>
   </div>
 </template>

@@ -9,6 +9,7 @@ import AppIcon from "./AppIcon.vue";
 import { isNativeApp } from "../lib/backend";
 import { snapshot, ready, saveNote, createNote, selectNote, deleteNote, restoreNote, refreshSnapshot } from "../lib/store";
 import { noteTitle } from "../lib/markdown";
+import { noteRetentionHours } from "../lib/notes";
 import type { NoteItem } from "../types";
 const notes = computed(() => snapshot.value.settings.note.notes);
 const active = computed(() => notes.value.find(n => n.id === snapshot.value.settings.note.activeId));
@@ -28,12 +29,12 @@ const unlisteners: (() => void)[] = [];
 let disposed = false;
 function scheduleExpiry() {
   if (expiryTimer) clearTimeout(expiryTimer);
-  const deadlines = notes.value.filter(n => n.deleteAfterHours !== null).map(n => n.createdAt + n.deleteAfterHours! * 3600000);
+  const deadlines = notes.value.flatMap(n => { const hours = noteRetentionHours(n, snapshot.value.settings.note.defaultDeleteAfterHours); return hours === null ? [] : [n.createdAt + hours * 3600000]; });
   if (!deadlines.length || disposed) return;
   const delay = Math.max(1000, Math.min(2147483647, Math.min(...deadlines) - Date.now()));
   expiryTimer = setTimeout(() => { void refreshSnapshot().finally(scheduleExpiry); }, delay);
 }
-watch(notes, scheduleExpiry, { immediate: true });
+watch([notes, () => snapshot.value.settings.note.defaultDeleteAfterHours], scheduleExpiry, { immediate: true });
 watch(listOpen, async open => { if (open) { await nextTick(); listPanel.value?.querySelector<HTMLButtonElement>('button')?.focus(); } });
 function listKeys(event: KeyboardEvent) {
   if (event.key !== 'Tab') return;

@@ -85,7 +85,8 @@ export async function createNote(): Promise<void> { applySnapshot(await backend.
 export async function selectNote(id: number): Promise<void> { applySnapshot(await backend.selectNote(id)); }
 export async function deleteNote(id: number): Promise<void> { applySnapshot(await backend.deleteNote(id)); }
 export async function restoreNote(item: import("../types").NoteItem): Promise<void> { applySnapshot(await backend.restoreNote(item)); }
-export async function setNoteExpiry(id: number, hours: number | null): Promise<void> { applySnapshot(await backend.setNoteExpiry(id, hours)); }
+export async function setNoteExpiry(id: number, hours: number | null, inherit = false): Promise<void> { applySnapshot(await backend.setNoteExpiry(id, hours, inherit)); }
+export async function setNoteDefaultExpiry(hours: number | null): Promise<void> { applySnapshot(await backend.setNoteDefaultExpiry(hours)); }
 export async function setNoteColor(color: string): Promise<void> { applySnapshot(await backend.setNoteColor(color)); }
 export async function saveCountdown(item: Parameters<typeof backend.saveCountdown>[0]): Promise<void> { applySnapshot(await backend.saveCountdown(item)); }
 export async function deleteCountdown(id: number): Promise<void> { applySnapshot(await backend.deleteCountdown(id)); }

@@ -1137,6 +1137,7 @@ pub fn run() {
             if window.label() == "manager" {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
+                    let _ = window.emit("vela://manager-closed", ());
                     let _ = window.hide();
                 }
             }
@@ -1184,6 +1185,7 @@ pub fn run() {
             extras::delete_note,
             extras::restore_note,
             extras::set_note_expiry,
+            extras::set_note_default_expiry,
             extras::open_note_link,
             extras::set_note_color,
             extras::save_countdown,

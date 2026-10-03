@@ -27,8 +27,8 @@ export interface HolidayYear { year: number; source: string; days: HolidayDay[] 
 export interface HolidayData { schemaVersion: number; revision: number; updatedAt: string; years: HolidayYear[] }
 export interface HolidayCache { data: HolidayData; lastAttemptAt: number | null; lastCheckedAt: number | null; lastUpdatedAt: number | null; lastError: string | null }
 export interface ClockSettings { hour12: boolean; showSeconds: boolean; cities: ClockCity[] }
-export interface NoteItem { id: number; text: string; color: string; createdAt: number; deleteAfterHours: number | null }
-export interface NoteSettings { text: string; color: string; notes: NoteItem[]; activeId: number | null }
+export interface NoteItem { id: number; text: string; color: string; createdAt: number; deleteAfterHours: number | null; retentionOverride: boolean }
+export interface NoteSettings { text: string; color: string; notes: NoteItem[]; activeId: number | null; defaultDeleteAfterHours: number | null }
 export interface CountdownItem { id: number; title: string; date: string; yearly: boolean; countUp: boolean; createdDate: string }
 
 export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; description: string; defaultSize: WidgetSize; sizes: WidgetSize[] }> = {
@@ -77,7 +77,7 @@ export const defaultSnapshot: AppSnapshot = {
     weekStartsMonday: true,
     calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false },
     clock: { hour12: false, showSeconds: false, cities: [] },
-    note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null }], activeId: 1 },
+    note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
     widgets: {
       clock: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       note: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },

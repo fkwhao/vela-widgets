@@ -244,7 +244,7 @@ export async function createNote(): Promise<AppSnapshot> {
   return updatePreview(s => {
     if (s.settings.note.notes.length >= 200) throw new Error("最多保存 200 篇便签。");
     const id = nextNoteId(s.settings.note.notes);
-    s.settings.note.notes.push({ id, text: "", color: s.settings.note.color, createdAt: Date.now(), deleteAfterHours: null });
+    s.settings.note.notes.push({ id, text: "", color: s.settings.note.color, createdAt: Date.now(), deleteAfterHours: null, retentionOverride: false });
     s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note);
   });
 }
@@ -267,13 +267,18 @@ export async function restoreNote(item: import("../types").NoteItem): Promise<Ap
   return updatePreview(s => {
     if (s.settings.note.notes.length >= 200) throw new Error("最多保存 200 篇便签。");
     const id = nextNoteId(s.settings.note.notes);
-    s.settings.note.notes.push({ ...item, id, deleteAfterHours: null }); s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note);
+    s.settings.note.notes.push({ ...item, id, deleteAfterHours: null, retentionOverride: true }); s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note);
   });
 }
-export async function setNoteExpiry(id: number, hours: number | null): Promise<AppSnapshot> {
+export async function setNoteExpiry(id: number, hours: number | null, inherit = false): Promise<AppSnapshot> {
   if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 87600)) throw new Error("请输入 1–87600 小时。");
-  if (isNativeApp()) return invoke("set_note_expiry", { id, hours });
-  return updatePreview(s => { const item = s.settings.note.notes.find(n => n.id === id); if (!item) throw new Error("这个便签已被删除。"); item.deleteAfterHours = hours; s.settings.note = normalizeNotes(s.settings.note); });
+  if (isNativeApp()) return invoke("set_note_expiry", { id, hours, inherit });
+  return updatePreview(s => { const item = s.settings.note.notes.find(n => n.id === id); if (!item) throw new Error("这个便签已被删除。"); item.retentionOverride = !inherit; item.deleteAfterHours = inherit ? null : hours; s.settings.note = normalizeNotes(s.settings.note); });
+}
+export async function setNoteDefaultExpiry(hours: number | null): Promise<AppSnapshot> {
+  if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 87600)) throw new Error("请输入 1–87600 小时。");
+  if (isNativeApp()) return invoke("set_note_default_expiry", { hours });
+  return updatePreview(s => { s.settings.note.defaultDeleteAfterHours = hours; s.settings.note = normalizeNotes(s.settings.note); });
 }
 export async function openNoteLink(url: string): Promise<void> {
   if (!/^(https?:\/\/|mailto:)/i.test(url)) throw new Error("不支持打开这个链接。");

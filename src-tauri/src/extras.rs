@@ -22,6 +22,8 @@ pub struct NoteSettings {
     pub notes: Vec<NoteItem>,
     #[serde(default)]
     pub active_id: Option<i64>,
+    #[serde(default)]
+    pub default_delete_after_hours: Option<u32>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +35,8 @@ pub struct NoteItem {
     pub created_at: i64,
     #[serde(default)]
     pub delete_after_hours: Option<u32>,
+    #[serde(default)]
+    pub retention_override: bool,
 }
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -77,11 +81,17 @@ impl Default for NoteSettings {
             color: "#3b67b8".into(),
             notes: Vec::new(),
             active_id: None,
+            default_delete_after_hours: None,
         }
     }
 }
 impl NoteSettings {
     pub fn normalize(&mut self) {
+        for note in &mut self.notes {
+            if note.delete_after_hours.is_some() {
+                note.retention_override = true;
+            }
+        }
         if self.active_id.is_none() {
             self.notes.push(NoteItem {
                 id: 1,
@@ -89,6 +99,7 @@ impl NoteSettings {
                 color: self.color.clone(),
                 created_at: now_ms(),
                 delete_after_hours: None,
+                retention_override: false,
             });
             self.active_id = Some(1);
         }
@@ -112,9 +123,14 @@ impl NoteSettings {
                 note.created_at = now;
             }
         }
+        let default_hours = self.default_delete_after_hours;
         self.notes.retain(|n| {
-            n.delete_after_hours
-                .is_none_or(|h| now < n.created_at.saturating_add(i64::from(h) * 3600000))
+            (if n.retention_override || n.delete_after_hours.is_some() {
+                n.delete_after_hours
+            } else {
+                default_hours
+            })
+            .is_none_or(|h| now < n.created_at.saturating_add(i64::from(h) * 3600000))
         });
         self.normalize();
     }
@@ -309,6 +325,7 @@ pub fn create_note(app: AppHandle, state: State<'_, AppState>) -> Result<AppSnap
             color: s.note.color.clone(),
             created_at: now_ms(),
             delete_after_hours: None,
+            retention_override: false,
         });
         s.note.active_id = Some(id);
         s.note.normalize();
@@ -375,13 +392,14 @@ pub fn restore_note(
             return Err("最多保存 200 篇便签。".into());
         }
         let id = s.note.next_id();
-        // Undo preserves content and its original creation date, but clears expiry.
+        // Undo preserves the creation date and explicitly disables expiry.
         s.note.notes.push(NoteItem {
             id,
             text: item.text,
             color,
             created_at: item.created_at,
             delete_after_hours: None,
+            retention_override: true,
         });
         s.note.active_id = Some(id);
         s.note.normalize();
@@ -395,6 +413,7 @@ pub fn set_note_expiry(
     state: State<'_, AppState>,
     id: i64,
     hours: Option<u32>,
+    inherit: Option<bool>,
 ) -> Result<AppSnapshot, String> {
     if hours.is_some_and(|h| h == 0 || h > 87600) {
         return Err("请输入 1–87600 小时。".into());
@@ -406,7 +425,24 @@ pub fn set_note_expiry(
             .iter_mut()
             .find(|n| n.id == id)
             .ok_or("这个便签已被删除。")?;
-        note.delete_after_hours = hours;
+        note.retention_override = !inherit.unwrap_or(false);
+        note.delete_after_hours = if note.retention_override { hours } else { None };
+        s.note.expire(now_ms());
+        Ok(())
+    })?;
+    publish_snapshot(&app, state.inner())
+}
+#[tauri::command]
+pub fn set_note_default_expiry(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    hours: Option<u32>,
+) -> Result<AppSnapshot, String> {
+    if hours.is_some_and(|h| h == 0 || h > 87600) {
+        return Err("请输入 1–87600 小时。".into());
+    }
+    update_settings(state.inner(), |s| {
+        s.note.default_delete_after_hours = hours;
         s.note.expire(now_ms());
         Ok(())
     })?;
@@ -526,6 +562,7 @@ mod tests {
             color: "#3b67b8".into(),
             created_at: 1000,
             delete_after_hours: None,
+            retention_override: false,
         });
         note.expire(1000 + 24 * 3600000 - 1);
         assert_eq!(note.notes.len(), 2);
@@ -554,6 +591,7 @@ mod tests {
             color: "#12abcd".into(),
             created_at: now_ms(),
             delete_after_hours: Some(168),
+            retention_override: true,
         });
         settings.note.active_id = Some(id);
         settings.note.normalize();
@@ -563,6 +601,51 @@ mod tests {
         assert_eq!(reloaded.text, "# 生活");
         assert_eq!(reloaded.color, "#12abcd");
         assert_eq!(reloaded.notes[1].delete_after_hours, Some(168));
+    }
+    #[test]
+    fn default_retention_preserves_overrides_and_legacy_durations() {
+        let mut settings: NoteSettings = serde_json::from_value(serde_json::json!({
+            "text": "", "color": "#3b67b8", "activeId": 1,
+            "defaultDeleteAfterHours": 24,
+            "notes": [
+                {"id":1,"text":"继承","color":"#3b67b8","createdAt":1000},
+                {"id":2,"text":"永久","color":"#3b67b8","createdAt":1000,"retentionOverride":true},
+                {"id":3,"text":"旧独立","color":"#3b67b8","createdAt":1000,"deleteAfterHours":168}
+            ]
+        }))
+        .unwrap();
+        settings.normalize();
+        assert!(settings.notes[2].retention_override);
+        settings.expire(1000 + 24 * 3600000);
+        assert_eq!(
+            settings.notes.iter().map(|n| n.id).collect::<Vec<_>>(),
+            vec![2, 3]
+        );
+        settings.default_delete_after_hours = Some(1);
+        settings.expire(1000 + 25 * 3600000);
+        assert_eq!(settings.notes.len(), 2);
+        settings.notes[1].retention_override = false;
+        settings.notes[1].delete_after_hours = None;
+        settings.expire(1000 + 25 * 3600000);
+        assert_eq!(settings.notes.len(), 1);
+        assert_eq!(settings.notes[0].id, 2);
+    }
+    #[test]
+    fn global_expiry_is_persisted_by_background_cleanup() {
+        let db = Connection::open_in_memory().unwrap();
+        initialize_database(&db).unwrap();
+        let mut settings = read_settings(&db).unwrap();
+        settings.note.default_delete_after_hours = Some(1);
+        settings.note.notes[0].created_at = 1000;
+        write_settings(&db, &settings).unwrap();
+        assert!(cleanup_expired(&db, 1000 + 3600000)
+            .unwrap()
+            .unwrap()
+            .settings
+            .note
+            .notes
+            .is_empty());
+        assert!(read_settings(&db).unwrap().note.notes.is_empty());
     }
     #[test]
     fn custom_note_colors_are_validated_and_persisted() {

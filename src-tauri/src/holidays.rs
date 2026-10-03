@@ -206,7 +206,13 @@ fn download<T: serde::de::DeserializeOwned>(
         .get(url)
         .header(reqwest::header::CACHE_CONTROL, "no-cache")
         .send()
-        .map_err(|_| "无法连接节假日更新源，请稍后重试；本地数据仍可使用。".to_string())?;
+        .map_err(|error| {
+            if error.is_timeout() {
+                "连接节假日更新源超时，请稍后重试；本地数据仍可使用。".to_string()
+            } else {
+                "无法连接节假日更新源，请检查网络或系统代理；本地数据仍可使用。".to_string()
+            }
+        })?;
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Err("节假日更新源尚未发布，本地数据仍可使用。".into());
     }
@@ -345,6 +351,17 @@ pub fn start_update_worker(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "requires access to the published public holiday source"]
+    fn published_source_is_readable_by_native_client() {
+        let mut current = HolidayCache::default().data;
+        current.revision = 1;
+        let data = fetch_update(&current)
+            .expect("native holiday update request")
+            .expect("published data");
+        validate(&data).unwrap();
+        assert!(data.revision > 1);
+    }
     #[test]
     fn bundled_official_schedule_has_exact_days() {
         let data = HolidayCache::default().data;

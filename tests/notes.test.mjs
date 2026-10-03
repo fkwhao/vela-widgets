@@ -48,3 +48,24 @@ test("unsafe HTML and links remain inert; images load only on explicit action", 
   const encoded = markdown.render("```mermaid\nflowchart TD\nA --> B\n```").match(/data-mermaid="([^"]+)"/)[1];
   assert.ok(!encoded.includes("-->")); assert.ok(decodeURIComponent(encoded).includes("A --> B"));
 });
+
+test("global retention affects inherited notes while individual and legacy overrides survive", () => {
+  const base = { activeId: 1, defaultDeleteAfterHours: 24, notes: [
+    { id: 1, text: "继承", color: "#3b67b8", createdAt: 1000, deleteAfterHours: null },
+    { id: 2, text: "永久", color: "#3b67b8", createdAt: 1000, deleteAfterHours: null, retentionOverride: true },
+    { id: 3, text: "旧独立", color: "#3b67b8", createdAt: 1000, deleteAfterHours: 168 }
+  ] };
+  const before = normalizeNotes(base, 1000 + 24 * 3600000 - 1);
+  assert.equal(before.notes[2].retentionOverride, true);
+  const expired = normalizeNotes(before, 1000 + 24 * 3600000);
+  assert.deepEqual(expired.notes.map(n => n.id), [2,3]);
+  expired.defaultDeleteAfterHours = 1;
+  assert.equal(normalizeNotes(expired, 1000 + 25 * 3600000).notes.length, 2);
+  expired.notes[1].retentionOverride = false; expired.notes[1].deleteAfterHours = null;
+  assert.deepEqual(normalizeNotes(expired, 1000 + 25 * 3600000).notes.map(n => n.id), [2]);
+});
+test("empty note collections retain the global default through reload", () => {
+  const settings = normalizeNotes({ activeId: 0, notes: [], defaultDeleteAfterHours: 168 }, 1000);
+  assert.equal(settings.notes.length, 0);
+  assert.equal(normalizeNotes(settings, 2000).defaultDeleteAfterHours, 168);
+});
