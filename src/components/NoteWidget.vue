@@ -57,15 +57,16 @@ async function flush(): Promise<void> {
   if (draft.value === saved.value || !draftId.value) return;
   pending = (async () => {
     while (draft.value !== saved.value) {
-      const text = draft.value, id = draftId.value; status.value = "正在保存";
-      try { await saveNote(id, text); if (draftId.value === id) { saved.value = text; status.value = "已保存"; } }
+      const text = draft.value, id = draftId.value;
+      // Saving is silent, as in Sticky Notes; only a failure is worth showing.
+      try { await saveNote(id, text); if (draftId.value === id) { saved.value = text; status.value = ""; } }
       catch (error) { status.value = "未保存，点击重试"; throw error; }
     }
   })();
   try { await pending; } finally { pending = undefined; }
 }
 function queueSave() {
-  status.value = "正在编辑"; if (timer) clearTimeout(timer);
+  if (timer) clearTimeout(timer);
   if (!composing.value) timer = setTimeout(() => { timer = undefined; void flush().catch(() => undefined); }, 450);
 }
 function startComposition() { composing.value = true; if (timer) clearTimeout(timer); }
@@ -127,16 +128,18 @@ onUnmounted(() => { disposed = true; if (timer) clearTimeout(timer); if (undoTim
   <WidgetFrame kind="note" header-only :before-close="flush"><template #default="{ widget, drag }">
     <header class="extra-header note-header" :inert="listOpen">
       <h1 class="note-title" :style="{ '--note-color': color }" :data-tooltip="noteTitle(draft)" :data-tauri-drag-region="drag"><AppIcon name="note" :size="15" /><span>{{ active ? noteTitle(draft) : '便签' }}</span></h1>
-      <div class="note-actions"><button class="widget-icon-button" aria-label="新建便签" data-tooltip="新建便签" :disabled="busy" @click="newNote"><AppIcon name="plus" :size="14" /></button><button class="widget-icon-button" aria-label="删除当前便签" data-tooltip="删除当前便签" :disabled="busy || !active" @click="remove"><AppIcon name="trash" :size="14" /></button><button class="widget-icon-button" :aria-label="editing ? '完成编辑' : '编辑便签'" :data-tooltip="editing ? '完成编辑' : '编辑便签'" :disabled="busy" @click="editing ? finish() : edit()"><AppIcon :name="editing ? 'tick' : 'edit'" :size="14" /></button></div>
+      <div class="note-actions"><button class="widget-icon-button" aria-label="新建便签" data-tooltip="新建便签" :disabled="busy" @click="newNote"><AppIcon name="plus" :size="14" /></button><button class="widget-icon-button" aria-label="删除当前便签" data-tooltip="删除当前便签" :disabled="busy || !active" @click="remove"><AppIcon name="trash" :size="14" /></button><button class="widget-icon-button" :aria-label="editing ? '完成编辑' : '编辑便签'" :data-tooltip="editing ? '完成' : '编辑便签'" :disabled="busy" @click="editing ? finish() : edit()"><AppIcon :name="editing ? 'tick' : 'edit'" :size="14" /></button></div>
     </header>
-    <div v-if="editing && widget.size === 'large'" class="note-toolbar"><button class="widget-chip" aria-label="插入标题" @click="insert('# ')">H</button><button class="widget-chip" aria-label="插入加粗文字" @click="insert('**', '**')"><b>B</b></button><button class="widget-chip" aria-label="插入列表" @click="insert('- ')">列表</button><button class="widget-chip" aria-label="插入任务" @click="insert('- [ ] ')">待办</button><button class="widget-chip" aria-label="插入代码" @click="insert('```\n', '\n```', '代码')">代码</button><span class="extra-muted">Markdown</span></div>
-    <div class="note-stack" :class="{ 'stack-up': direction < 0 }">
+    <div class="note-stack" :class="{ 'stack-up': direction < 0, 'is-editing': editing }">
       <Transition name="note-card" @before-leave="el => { el.setAttribute('aria-hidden', 'true'); el.setAttribute('inert', ''); }"><div :key="draftId" class="note-sheet">
-        <textarea v-if="editing" ref="input" v-model="draft" class="note-editor" maxlength="20000" aria-label="便签 Markdown 内容" placeholder="第一行作为标题&#10;&#10;支持 Markdown、表格、公式与 Mermaid 图表…" @input="queueSave" @keydown.ctrl.enter.prevent="finish" @keydown.ctrl.b.prevent="insert('**', '**')" @keydown.tab.prevent="insert('  ', '', '')" @keydown.esc="finish" @compositionstart="startComposition" @compositionend="composing = false; queueSave()"></textarea>
+        <textarea v-if="editing" ref="input" v-model="draft" class="note-editor" maxlength="20000" aria-label="便签 Markdown 内容，Esc 完成" placeholder="第一行作为标题&#10;&#10;记下一点什么…" @input="queueSave" @keydown.ctrl.enter.prevent="finish" @keydown.ctrl.b.prevent="insert('**', '**')" @keydown.tab.exact.prevent="insert('  ', '', '')" @keydown.esc="finish" @compositionstart="startComposition" @compositionend="composing = false; queueSave()"></textarea>
         <div v-else class="note-content" :class="{ empty: !draft }" role="region" aria-label="便签内容" tabindex="0"><NoteMarkdown v-if="draft" :text="draft" :note-id="draftId" /><span v-else>{{ active ? '记下一点什么。' : '还没有便签。' }}<small>{{ active ? '点击右上角编辑按钮' : '点击 + 新建便签' }}</small></span></div>
       </div></Transition>
     </div>
-    <footer class="note-footer" :inert="listOpen"><button v-if="deleted" class="note-save-status" :disabled="busy" aria-label="撤销删除便签" @click="undo">已删除 · 撤销</button><button v-else class="note-save-status" :data-tooltip="status || '自动保存'" aria-live="polite" @click="flush().catch(() => undefined)">{{ status || (editing ? '自动保存' : `${draft.length} 字`) }}</button><WidgetPageControls :page="page" :count="notes.length" label="便签" :editing="editing || busy" @move="move" /></footer>
+    <div v-if="editing" class="note-format-bar" role="toolbar" aria-label="便签格式" @mousedown.prevent>
+      <button type="button" aria-label="插入标题" data-tooltip="标题" @click="insert('# ')">H</button><button type="button" aria-label="加粗" data-tooltip="加粗 · Ctrl+B" @click="insert('**', '**')"><b>B</b></button><button type="button" aria-label="斜体" data-tooltip="斜体" @click="insert('*', '*')"><i>I</i></button><span class="note-format-divider"></span><button type="button" aria-label="插入列表" data-tooltip="列表" @click="insert('- ')">≡</button><button type="button" aria-label="插入任务" data-tooltip="任务列表" @click="insert('- [ ] ')"><AppIcon name="tick" :size="13" /></button><button v-if="widget.size !== 'small'" type="button" aria-label="插入代码" data-tooltip="代码" @click="insert('```\n', '\n```', '代码')">&lt;/&gt;</button>
+    </div>
+    <div class="immersive-footer-zone note-footer-zone" :class="{ 'has-notice': deleted || status }" :inert="listOpen"><footer class="note-footer immersive-footer"><button v-if="deleted" class="note-save-status" :disabled="busy" aria-label="撤销删除便签" @click="undo">已删除 · 撤销</button><button v-else-if="status" class="note-save-status error" :data-tooltip="status" aria-live="polite" @click="flush().catch(() => undefined)">{{ status }}</button><span v-else class="note-word-count" :class="{ 'long-count': draft.length >= 10000 }" :data-tooltip="`${draft.length} 字 · 自动保存`" :aria-label="`${draft.length} 字，自动保存`"><strong>{{ draft.length }}</strong><small>字</small></span><WidgetPageControls :page="page" :count="notes.length" label="便签" :editing="editing || busy" @move="move" /></footer></div>
     <section v-if="listOpen" ref="listPanel" class="note-list-panel" role="dialog" aria-modal="true" aria-label="便签列表" @keydown="listKeys" @keydown.esc.stop="listOpen = false"><header><strong>便签列表 <small>{{ notes.length }}</small></strong><button class="widget-icon-button" aria-label="关闭便签列表" @click="listOpen = false"><AppIcon name="close" :size="14" /></button></header><div class="note-list-items"><button v-for="note in notes" :key="note.id" :aria-pressed="note.id === active?.id" :disabled="busy" @click="choose(note.id)"><i :style="{ background: note.color }"></i><span>{{ noteTitle(note.text) }}</span><AppIcon v-if="note.id === active?.id" name="tick" :size="12" /></button><p v-if="!notes.length" class="extra-muted">点击 + 创建第一篇便签</p></div></section>
     </template><template #context-actions="{ dismiss }"><button class="context-primary" role="menuitem" :disabled="busy" @click="dismiss(); newNote()"><AppIcon name="plus" :size="14" />新建便签</button><button role="menuitem" :disabled="editing || busy" @click="dismiss(); listOpen = true"><AppIcon name="note" :size="14" />便签列表</button><button class="context-danger" role="menuitem" :disabled="!active || busy" @click="dismiss(); remove()"><AppIcon name="trash" :size="14" />删除当前便签</button><div class="context-divider"></div></template>
   </WidgetFrame>

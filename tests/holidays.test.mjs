@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 const source = readFileSync(new URL("../src/lib/holidays.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
-const { validateHolidayData, fetchHolidayUpdate, mergeHolidayData, normalizeHolidayCache, visibleHoliday, holidayUpdateDue } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
+const { validateHolidayData, fetchHolidayUpdate, mergeHolidayData, normalizeHolidayCache, visibleHoliday, holidayUpdateDue, isCalendarRestDay } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const bundled = JSON.parse(readFileSync(new URL("../data/holidays/china.json", import.meta.url), "utf8"));
 const options = { showHolidays: true, showWorkdays: true, autoUpdate: false };
 const mock = (documents, calls = []) => async url => { calls.push(url); const document = documents.shift(); return document instanceof Response ? document : new Response(JSON.stringify(document)); };
@@ -56,4 +56,15 @@ test("failed attempts are throttled for 24 hours and manual checks can bypass ti
   assert.equal(holidayUpdateDue(10,86_400_009),false);
   assert.equal(holidayUpdateDue(10,86_400_010),true);
   assert.equal(holidayUpdateDue(20,10),true);
+});
+
+test("calendar rest-day colors prioritize official adjustments over weekends", () => {
+  const days = new Map(bundled.years[0].days.map(day => [day.date, day]));
+  const rest = key => isCalendarRestDay(new Date(`${key}T12:00:00`), days.get(key));
+  assert.equal(rest("2026-10-01"), true); // Holiday on a weekday.
+  assert.equal(rest("2026-10-10"), false); // Saturday adjusted to work.
+  assert.equal(rest("2026-10-11"), true); // Ordinary Sunday.
+  assert.equal(rest("2026-10-17"), true); // Ordinary Saturday.
+  assert.equal(rest("2026-10-12"), false); // Ordinary Monday.
+  assert.equal(rest("2027-01-02"), true); // Weekend fallback without published data.
 });

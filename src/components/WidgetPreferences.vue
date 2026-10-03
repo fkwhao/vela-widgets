@@ -18,7 +18,7 @@ const yearly = ref(false);
 const countUp = ref(false);
 const createdDate = ref(localDateKey(new Date()));
 const clockToolModes = clockModes.filter(mode => mode.value !== "clock");
-const clockMode = ref<ClockMode>("alarm");
+const clockMode = ref<ClockMode | null>(null);
 const clock = computed(() => snapshot.value.settings.clock);
 const cities = [
   { name: "北京", timeZone: "Asia/Shanghai" }, { name: "东京", timeZone: "Asia/Tokyo" }, { name: "新加坡", timeZone: "Asia/Singapore" }, { name: "迪拜", timeZone: "Asia/Dubai" }, { name: "伦敦", timeZone: "Europe/London" }, { name: "巴黎", timeZone: "Europe/Paris" }, { name: "纽约", timeZone: "America/New_York" }, { name: "洛杉矶", timeZone: "America/Los_Angeles" }, { name: "悉尼", timeZone: "Australia/Sydney" }, { name: "奥克兰", timeZone: "Pacific/Auckland" },
@@ -50,13 +50,13 @@ const deleting = ref<number | null>(null);
   <template v-if="kind === 'clock'">
     <h2 class="section-title">时间显示</h2><div class="settings-group">
       <div class="settings-card"><AppIcon class="card-icon" name="clock" :size="18" /><div class="card-text"><strong>12 小时制</strong><span>关闭时使用 24 小时制</span></div><button class="toggle-switch" :class="{ on: clock.hour12 }" role="switch" :aria-checked="clock.hour12" aria-label="12 小时制" :disabled="busy" @click="run(() => setClockSettings({ ...clock, hour12: !clock.hour12 }))"><span></span></button></div>
-      <div class="settings-card"><AppIcon class="card-icon" name="clock" :size="18" /><div class="card-text"><strong>显示秒</strong><span>开启后每秒刷新，隐藏时暂停</span></div><button class="toggle-switch" :class="{ on: clock.showSeconds }" role="switch" :aria-checked="clock.showSeconds" aria-label="显示秒" :disabled="busy" @click="run(() => setClockSettings({ ...clock, showSeconds: !clock.showSeconds }))"><span></span></button></div>
+      <div class="settings-card"><AppIcon class="card-icon" name="clock" :size="18" /><div class="card-text"><strong>显示秒</strong><span>数字时间显示秒数；指针表盘始终显示秒针</span></div><button class="toggle-switch" :class="{ on: clock.showSeconds }" role="switch" :aria-checked="clock.showSeconds" aria-label="显示秒" :disabled="busy" @click="run(() => setClockSettings({ ...clock, showSeconds: !clock.showSeconds }))"><span></span></button></div>
       <div class="settings-card stacked"><div class="card-text"><strong>世界时钟</strong><span>最多三个城市，时差自动随夏令时变化</span></div><div class="city-options"><button v-for="city in cities" :key="city.timeZone" class="win-button" :class="{ selected: clock.cities.some(c => c.timeZone === city.timeZone) }" :aria-pressed="clock.cities.some(c => c.timeZone === city.timeZone)" :disabled="busy" @click="toggleCity(city)">{{ city.name }}</button></div></div>
     </div>
     <h2 class="section-title clock-tools-heading">时钟工具<button type="button" class="holiday-info-button" aria-label="时钟工具说明" data-tooltip="切换设置页工具不会改变桌面时钟模式，也不会中断计时。&#10;&#10;Vela 运行时到时弹窗并播放系统提示音；隐藏组件仍会提醒。退出期间到期的提醒在下次启动时补显。"><AppIcon name="info" :size="16" /></button></h2>
     <div class="settings-card stacked clock-management">
-      <nav class="clock-manager-tabs" aria-label="时钟工具模式"><button v-for="mode in clockToolModes" :key="mode.value" class="win-button" :class="{selected:clockMode===mode.value}" :aria-pressed="clockMode===mode.value" :disabled="busy" @click="clockMode=mode.value"><AppIcon :name="mode.icon" :size="15" />{{ mode.label }}</button></nav>
-      <ClockToolsPanel :mode="clockMode" manager />
+      <nav class="clock-manager-tabs" aria-label="时钟工具模式"><button v-for="mode in clockToolModes" :key="mode.value" class="win-button" :class="{selected:clockMode===mode.value}" :aria-pressed="clockMode===mode.value" :disabled="busy" @click="clockMode=clockMode===mode.value ? null : mode.value"><AppIcon :name="mode.icon" :size="15" />{{ mode.label }}</button></nav>
+      <ClockToolsPanel v-if="clockMode" :mode="clockMode" manager />
     </div>
   </template>
   <template v-else-if="kind === 'note'">

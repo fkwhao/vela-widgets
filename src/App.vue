@@ -49,6 +49,14 @@ function applyTheme(): void {
     void getCurrentWindow().setTheme(configured === "system" ? null : resolved).catch(() => undefined);
   }
   document.documentElement.style.setProperty("--accent", snapshot.value.settings.accentColor);
+  // The accent stays the user's color in either theme; choose readable foregrounds from it.
+  const accent = snapshot.value.settings.accentColor;
+  const channels = [1, 3, 5].map(offset => parseInt(accent.slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
+  const luminance = .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
+  const whiteContrast = 1.05 / (luminance + .05);
+  const darkContrast = (luminance + .05) / .05857;
+  document.documentElement.style.setProperty("--accent-contrast", whiteContrast >= darkContrast ? "#fff" : "#171717");
   const transparency = Math.min(100, Math.max(0, snapshot.value.settings.widgetTransparency));
   const cornerRadius = Math.min(30, Math.max(8, snapshot.value.settings.widgetCornerRadius));
   document.documentElement.style.setProperty("--widget-background-alpha", String(1 - transparency / 100));

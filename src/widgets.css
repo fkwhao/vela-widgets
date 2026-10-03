@@ -8,6 +8,7 @@
   --wg-text-2: rgba(0, 0, 0, .62);
   --wg-text-3: rgba(0, 0, 0, .44);
   --wg-text-4: rgba(0, 0, 0, .26);
+  --wg-fill-press: rgba(255, 255, 255, .3);
   --wg-fill: rgba(0, 0, 0, .045);
   --wg-fill-hover: rgba(0, 0, 0, .07);
   --wg-fill-press: rgba(0, 0, 0, .1);
@@ -16,6 +17,11 @@
   --wg-highlight: rgba(255, 255, 255, .7);
   --wg-control: rgba(255, 255, 255, .72);
   --wg-control-stroke: rgba(0, 0, 0, .1);
+  --wg-control-hover: rgba(255, 255, 255, .5);
+  --wg-control-press: rgba(255, 255, 255, .3);
+  --wg-control-focus: rgba(255, 255, 255, .94);
+  --wg-control-edge: rgba(0, 0, 0, .1622);
+  --wg-control-strong: rgba(0, 0, 0, .446);
   --wg-shadow: 0 1px 2px rgba(0, 0, 0, .1);
   --wg-accent-text: color-mix(in srgb, var(--accent) 86%, black);
   --wg-danger: #c42b1c;
@@ -27,6 +33,7 @@
   --wg-text-2: rgba(255, 255, 255, .68);
   --wg-text-3: rgba(255, 255, 255, .46);
   --wg-text-4: rgba(255, 255, 255, .24);
+  --wg-fill-press: rgba(255, 255, 255, .0326);
   --wg-fill: rgba(255, 255, 255, .06);
   --wg-fill-hover: rgba(255, 255, 255, .09);
   --wg-fill-press: rgba(255, 255, 255, .05);
@@ -35,6 +42,11 @@
   --wg-highlight: rgba(255, 255, 255, .08);
   --wg-control: rgba(255, 255, 255, .06);
   --wg-control-stroke: rgba(255, 255, 255, .09);
+  --wg-control-hover: rgba(255, 255, 255, .0837);
+  --wg-control-press: rgba(255, 255, 255, .0326);
+  --wg-control-focus: rgba(30, 30, 30, .7);
+  --wg-control-edge: rgba(255, 255, 255, .14);
+  --wg-control-strong: rgba(255, 255, 255, .544);
   --wg-shadow: 0 1px 2px rgba(0, 0, 0, .3);
   --wg-accent-text: color-mix(in srgb, var(--accent) 62%, white);
   --wg-danger: #ff99a4;
@@ -44,6 +56,8 @@
 .widget-window {
   position: relative;
   isolation: isolate;
+  /* Full-widget editors are position: fixed; this keeps them inside the widget in browser previews too. */
+  contain: layout;
   display: flex;
   width: 100%;
   height: 100%;
@@ -174,7 +188,9 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
-.cal-mini-day.today { color: #fff; background: var(--accent); font-weight: 700; }
+.cal-mini-day.rest-day { color: var(--wg-accent-text); }
+.cal-mini-day.today { font-weight:700; }
+.cal-mini-day.selected { color:#1c1c1e; background:#fff; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,.12); }
 
 /* Calendar · large */
 .cal-large-header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; margin: 0 -4px 8px 2px; }
@@ -199,9 +215,10 @@
 .date-cell:hover > span { background: var(--wg-fill-hover); }
 .date-cell:active > span { background: var(--wg-fill-press); }
 .date-cell.outside { color: var(--wg-text-4); }
-.date-cell.selected > span { color: var(--wg-accent-text); background: color-mix(in srgb, var(--accent) 16%, transparent); font-weight: 650; }
-.date-cell.today > span { color: #fff; background: var(--accent); font-weight: 700; box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 32%, transparent); }
-.date-cell.today:hover > span { background: color-mix(in srgb, var(--accent) 88%, black); }
+.date-cell.rest-day { color:var(--wg-accent-text); }
+.date-cell.outside.rest-day { color:color-mix(in srgb,var(--wg-accent-text) 45%,transparent); }
+.date-cell.today > span { font-weight:700; }
+.date-cell.selected > span,.date-cell.selected:hover > span { color:#1c1c1e; background:#fff; font-weight:650; box-shadow:0 1px 4px rgba(0,0,0,.14); }
 .date-cell:focus-visible { outline: none; }
 .date-cell:focus-visible > span { outline: 2px solid var(--wg-text); outline-offset: 1px; }
 .calendar-footer {
@@ -223,10 +240,10 @@
 .cal-small .cal-holiday-caption { font-size: 11px; }
 .cal-mini-day, .date-cell { position: relative; }
 .cal-holiday-dot { position: absolute; width: 3px; height: 3px; border-radius: 50%; right: -3px; bottom: 1px; background: var(--wg-accent-text); }
-.cal-holiday-dot.workday { background: var(--wg-danger); }
+.cal-holiday-dot.workday { background: var(--wg-text-3); }
 .cal-data-missing { margin-left: 3px; color: var(--wg-text-3); font-style: normal; }
 .cal-holiday-mark { position: absolute; top: 1px; right: 2px; color: var(--wg-accent-text); font-size: 8px; line-height: 10px; font-style: normal; }
-.cal-holiday-mark.workday { color: var(--wg-danger); }
+.cal-holiday-mark.workday { color: var(--wg-text); }
 .date-cell.outside .cal-holiday-mark { opacity: .5; }
 .calendar-footer-date { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .calendar-footer-date small { color: var(--wg-text-3); font-size: 10px; }
@@ -331,99 +348,35 @@
 .todo-item .todo-check { margin-top: 0; }
 .todo-item-content { display: grid; min-width: 0; flex: 1; gap: 3px; }
 .todo-title-button { display: block; overflow: hidden; padding: 0; color: var(--wg-text); border: 0; background: transparent; text-align: left; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 18px; cursor: text; }
+.todo-title-button:focus-visible { outline-offset: 2px; border-radius: 2px; }
 .todo-item.completed .todo-title-button { color: var(--wg-text-3); text-decoration: line-through; text-decoration-color: var(--wg-text-4); }
 .todo-due { display: inline-flex; align-items: center; gap: 4px; color: var(--wg-text-3); font-size: 11.5px; }
 .todo-due.overdue { color: var(--wg-danger); }
-.todo-more, .todo-delete {
+.todo-more {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex: none;
   place-items: center;
-  margin-top: -2px;
+  margin-top: -3px;
   padding: 0;
-  color: var(--wg-text-3);
+  color: var(--wg-text-2);
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   opacity: 0;
   cursor: pointer;
   transition: opacity .12s ease, background .12s ease, color .12s ease;
 }
-.todo-item:hover .todo-more, .todo-item:hover .todo-delete, .todo-more:focus-visible, .todo-delete:focus-visible { opacity: 1; }
-.todo-more:hover { color: var(--wg-text); background: var(--wg-fill-hover); }
-.todo-delete:hover { color: var(--wg-danger); background: color-mix(in srgb, var(--wg-danger) 12%, transparent); }
+.todo-item:hover .todo-more, .todo-more:focus-visible, .todo-more[data-state="open"] { opacity: 1; }
+.todo-more:hover, .todo-more[data-state="open"] { color: var(--wg-text); background: var(--wg-fill-hover); }
 .todo-empty { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 100%; padding: 18px 0; color: var(--wg-text-3); font-size: 12.5px; text-align: center; }
-.todo-edit-form { display: grid; min-width: 0; gap: 6px; }
-.todo-edit-row { display: flex; gap: 6px; }
-.todo-edit-title, .todo-edit-date, .todo-create-input, .todo-create-date {
-  min-width: 0;
-  color: var(--wg-text);
-  border: 1px solid var(--wg-control-stroke);
-  border-bottom-color: color-mix(in srgb, var(--wg-text) 22%, transparent);
-  background: var(--wg-control);
-  font-size: 12.5px;
-}
-.todo-edit-title, .todo-edit-date { padding: 5px 8px; border-radius: 6px; }
-.todo-edit-date { flex: 1; }
-.todo-edit-title:focus, .todo-edit-date:focus, .todo-create-input:focus, .todo-create-date:focus {
-  border-bottom-color: var(--accent);
-  outline: none;
-  box-shadow: inset 0 -1px 0 var(--accent);
-}
-:root[data-theme="dark"] .todo-edit-date, :root[data-theme="dark"] .todo-create-date { color-scheme: dark; }
-.todo-save-edit { flex: none; padding: 5px 12px; color: #fff; border: 0; border-radius: 6px; background: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
-.todo-save-edit:disabled { opacity: .65; cursor: wait; }
+/* Inline rename: Enter or clicking elsewhere saves, Esc cancels, like renaming in Explorer. */
+.todo-edit-form { display: grid; min-width: 0; gap: 6px; margin: -5px 0 -2px; }
+.todo-edit-form .vela-date-field { justify-self: start; min-width: 150px; }
+.todo-item.editing .todo-more { opacity: 0; pointer-events: none; }
 
-/* To-do composer (portalled to <body>, so it reads the :root tokens) */
-.todo-compose-overlay { position: fixed; inset: 0; z-index: 60; border-radius: var(--widget-radius, 19px); background: rgba(var(--wg-tint), .42); backdrop-filter: blur(10px); }
-.todo-compose-panel {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 61;
-  width: min(312px, calc(100vw - 28px));
-  padding: 16px;
-  color: var(--wg-text);
-  border: 1px solid var(--wg-stroke);
-  border-radius: 14px;
-  background: rgba(var(--wg-tint), .94);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, .2), inset 0 1px 0 var(--wg-highlight);
-  transform: translate(-50%, -50%);
-}
-.todo-compose-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.todo-compose-title { margin: 0; color: var(--wg-text); font-size: 14px; font-weight: 650; }
-.todo-compose-close { display: grid; width: 26px; height: 26px; place-items: center; padding: 0; color: var(--wg-text-2); border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
-.todo-compose-close:hover { color: var(--wg-text); background: var(--wg-fill-hover); }
-.todo-compose-form { display: grid; gap: 6px; }
-.todo-compose-label { margin-top: 2px; color: var(--wg-text-2); font-size: 11px; }
-.todo-create-input, .todo-create-date { width: 100%; padding: 7px 10px; border-radius: 7px; }
-.todo-create-input::placeholder { color: var(--wg-text-3); }
-.todo-compose-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-.todo-compose-panel:not(.compact) .todo-create-date { flex: 1 0 100%; margin-bottom: 6px; }
-.todo-compose-cancel, .todo-compose-submit { min-width: 60px; height: 30px; padding: 0 12px; border: 1px solid var(--wg-control-stroke); border-radius: 7px; font-size: 12px; cursor: pointer; }
-.todo-compose-cancel { color: var(--wg-text); background: var(--wg-control); }
-.todo-compose-cancel:hover { background: var(--wg-fill-hover); }
-.todo-compose-submit { color: #fff; border-color: transparent; background: var(--accent); font-weight: 600; }
-.todo-compose-submit:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 90%, black); }
-.todo-compose-submit:disabled { opacity: .45; cursor: default; }
-/* Small and medium widgets are only 170px tall: drop the labels and stack tighter. */
-.todo-compose-panel.compact { width: calc(100vw - 20px); padding: 12px; border-radius: 12px; }
-.todo-compose-panel.compact .todo-compose-header { margin-bottom: 8px; }
-.todo-compose-panel.compact .todo-compose-title { font-size: 13px; }
-.todo-compose-panel.compact .todo-compose-close { display: none; }
-.todo-compose-panel.compact .todo-compose-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-.todo-compose-panel.compact .todo-compose-actions { flex-wrap: nowrap; }
-.todo-compose-panel.compact .todo-create-date { width: auto; min-width: 0; flex: 1; padding: 6px 8px; }
-.todo-compose-panel.size-small .todo-compose-cancel { display: none; }
-.todo-compose-panel.size-small .todo-compose-submit { flex: 1; }
+
 
 .widget-notice { position: absolute; right: 10px; bottom: 10px; left: 10px; z-index: 40; padding: 8px 11px; color: var(--wg-text); border: 1px solid var(--wg-stroke); border-radius: 9px; background: rgba(var(--wg-tint), .96); box-shadow: 0 6px 18px rgba(0, 0, 0, .18); font-size: 12px; }
 
@@ -487,19 +440,36 @@
 .clock-city span { color: var(--wg-text); font-size: 12px; }
 .clock-city small { display: flex; align-items: center; gap: 4px; color: var(--wg-text-3); font-size: 10px; }
 .clock-city strong { color: var(--wg-text); font-size: 17px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.clock-face { position: relative; width: 174px; height: 174px; flex: none; align-self: center; border: 1px solid var(--wg-divider); border-radius: 50%; background: var(--wg-fill); }
+/* Analog clock for small widget */
+.clock-analog-small { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; }
+.clock-face-small { width: 110px; height: 110px; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .08)); }
+.clock-dial { fill: var(--wg-fill); stroke: var(--wg-divider); stroke-width: 1.5; }
+.clock-ticks line.major { stroke: var(--wg-text-3); stroke-width: 1.8; stroke-linecap: round; }
+.clock-ticks line.minor { stroke: var(--wg-text-4); stroke-width: 1; }
+.clock-number { fill: var(--wg-text-2); font-size: 11px; font-weight: 500; text-anchor: middle; dominant-baseline: middle; font-variant-numeric: tabular-nums; }
+.clock-hand-hour { stroke: var(--wg-text); stroke-width: 3; stroke-linecap: round; }
+.clock-hand-minute { stroke: var(--wg-text); stroke-width: 2; stroke-linecap: round; }
+.clock-hand-second { stroke: var(--wg-accent-text); stroke-width: 1; }
+.clock-center { fill: var(--wg-accent-text); }
+.clock-small-info { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.clock-small-info strong { font-size: 14px; font-weight: 600; color: var(--wg-text); font-variant-numeric: tabular-nums; }
+.clock-small-info span { font-size: 10.5px; color: var(--wg-text-3); }
+
+/* Enhanced large analog clock */
+.clock-face { position: relative; width: 174px; height: 174px; flex: none; align-self: center; border: 2px solid var(--wg-divider); border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--wg-fill), color-mix(in srgb, var(--wg-fill) 94%, black)); box-shadow: 0 4px 16px rgba(0, 0, 0, .12), inset 0 1px 2px var(--wg-highlight); }
 .clock-tick { position: absolute; inset: 8px; }
-.clock-tick::before { position: absolute; left: calc(50% - 1px); width: 2px; height: 6px; border-radius: 2px; background: var(--wg-text-4); content: ""; }
-.clock-face-label { position: absolute; color: var(--wg-text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
-.clock-face-label.twelve { top: 19px; left: 50%; transform: translateX(-50%); }
-.clock-face-label.six { bottom: 19px; left: 50%; transform: translateX(-50%); }
-.clock-face-label.three { top: 50%; right: 22px; transform: translateY(-50%); }
-.clock-face-label.nine { top: 50%; left: 22px; transform: translateY(-50%); }
-.clock-hand { position: absolute; z-index: 1; bottom: 50%; left: calc(50% - 2px); width: 4px; border-radius: 5px; background: var(--wg-text); transform-origin: 50% 100%; }
-.clock-hand.hour { height: 39px; }
-.clock-hand.minute { height: 58px; width: 3px; left: calc(50% - 1.5px); }
-.clock-hand.second { height: 64px; width: 1px; left: calc(50% - .5px); background: var(--wg-accent-text); }
-.clock-pin { position: absolute; z-index: 2; top: calc(50% - 4px); left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--wg-accent-text); }
+.clock-tick::before { position: absolute; left: calc(50% - 1px); width: 2px; height: 7px; border-radius: 2px; background: var(--wg-text-4); content: ""; }
+.clock-tick:nth-child(3n)::before { height: 10px; width: 2.5px; left: calc(50% - 1.25px); background: var(--wg-text-3); }
+.clock-face-label { position: absolute; color: var(--wg-text); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.clock-face-label.twelve { top: 18px; left: 50%; transform: translateX(-50%); }
+.clock-face-label.six { bottom: 18px; left: 50%; transform: translateX(-50%); }
+.clock-face-label.three { top: 50%; right: 20px; transform: translateY(-50%); }
+.clock-face-label.nine { top: 50%; left: 20px; transform: translateY(-50%); }
+.clock-hand { position: absolute; z-index: 1; bottom: 50%; left: calc(50% - 2px); width: 4px; border-radius: 5px; background: linear-gradient(to top, var(--wg-text), color-mix(in srgb, var(--wg-text) 85%, transparent)); transform-origin: 50% 100%; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); }
+.clock-hand.hour { height: 42px; width: 5px; left: calc(50% - 2.5px); }
+.clock-hand.minute { height: 62px; width: 3.5px; left: calc(50% - 1.75px); }
+.clock-hand.second { height: 68px; width: 1.5px; left: calc(50% - .75px); background: var(--wg-accent-text); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+.clock-pin { position: absolute; z-index: 2; top: calc(50% - 5px); left: calc(50% - 5px); width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle, var(--wg-accent-text), color-mix(in srgb, var(--wg-accent-text) 75%, black)); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
 .clock-large-date { margin: 10px 0 12px; text-align: center; }
 .clock-cities.large { justify-content: flex-start; gap: 8px; overflow-y: auto; border-top: 1px solid var(--wg-divider); padding-top: 10px; }
 .note-title { display: flex; align-items: center; gap: 6px; color: color-mix(in srgb, var(--note-color) 86%, black); }
@@ -526,11 +496,16 @@
 .note-content::-webkit-scrollbar-track, .note-editor::-webkit-scrollbar-track { background: transparent; }
 .note-content::-webkit-scrollbar-thumb, .note-editor::-webkit-scrollbar-thumb { min-height: 24px; border-radius: 4px; background: var(--wg-text-4); }
 .note-content::-webkit-scrollbar-thumb:hover, .note-editor::-webkit-scrollbar-thumb:hover { background: var(--wg-text-3); }
-.note-editor { width: 100%; min-height: 0; flex: 1; resize: none; padding: 4px 5px; color: var(--wg-text); border: 1px solid var(--wg-control-stroke); border-bottom: 2px solid var(--wg-accent-text); border-radius: 4px; outline: none; background: var(--wg-control); font-size: 13px; line-height: 1.7; user-select: text; }
+/* Writing happens in place, like Sticky Notes: no boxed field, only a faint sheet and the caret. */
+.note-editor { width: 100%; min-height: 0; flex: 1; resize: none; padding: 4px 6px; color: var(--wg-text); border: 0; border-radius: 5px; outline: none; background: var(--wg-fill); font: inherit; font-size: 13px; line-height: 1.7; caret-color: var(--wg-accent-text); user-select: text; }
+.note-editor::placeholder { color: var(--wg-text-3); }
+.note-editor::selection, .note-content ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
 .note-toolbar { display: flex; flex: none; align-items: center; gap: 6px; margin: 0 0 8px; }
 .note-toolbar .extra-muted { margin-left: auto; }
 .note-footer { display: flex; flex: none; align-items: center; justify-content: space-between; padding-top: 7px; }
-.note-save-status { padding: 0; color: var(--wg-text-3); border: 0; background: transparent; font-size: 10.5px; cursor: pointer; }
+.note-save-status { padding: 0; color: var(--wg-text-3); border: 0; background: transparent; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+button.note-save-status { cursor: pointer; }
+.note-save-status.error { color: var(--wg-danger); }
 .note-title { min-width: 0; flex: 1; font-size: 13px !important; }
 .note-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-title > svg { flex: none; }
@@ -624,10 +599,11 @@
 .countdown-row-meta { display: flex; justify-content: space-between; margin-top: 4px; color: var(--wg-text-3); font-size: 10px; }
 .countdown-progress { height: 3px; margin-top: 10px; overflow: hidden; border-radius: 9px; background: var(--wg-fill-hover); }
 .countdown-progress i { display: block; height: 100%; border-radius: inherit; background: var(--wg-accent-text); }
-@media (prefers-reduced-motion: reduce) { .clock-hand { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .clock-hand, .clock-hand-hour, .clock-hand-minute, .clock-hand-second { transition: none; } }
 
 /* All three city rows fit the large preset without a permanent scrollbar. */
-.clock-window.size-large .clock-face { width: 164px; height: 164px; }
+@media (prefers-reduced-motion: reduce) { .clock-hand, .clock-hand-hour, .clock-hand-minute, .clock-hand-second { transition: none; } }
+.clock-window.size-large .clock-face { width: 180px; height: 180px; }
 .clock-window.size-large .clock-cities { gap: 6px; }
 .clock-window.size-large .clock-city { min-height: 26px; }
 .clock-window.size-large .clock-city span { font-size: 11px; line-height: 1.25; }
@@ -672,22 +648,17 @@
 .clock-window.size-small .clock-time.with-seconds { font-size:28px; }
 .clock-window.size-small .clock-time.hour-12 { font-size:29px; }
 .clock-window.size-small .clock-time.hour-12.with-seconds { font-size:22px; }
-.clock-window.size-large .clock-face { width:148px; height:148px; }
 .clock-window.size-large .clock-hand.minute { height:51px; }
 .clock-window.size-large .clock-hand.second { height:57px; }
 .clock-tools-panel { display:flex; position:relative; flex:1; min-height:0; min-width:0; flex-direction:column; gap:8px; color:var(--wg-text); }
 .clock-counter { display:flex; align-items:center; flex-direction:column; justify-content:center; flex:1; gap:3px; min-height:0; }
 .clock-counter strong { font-size:38px; font-weight:300; letter-spacing:-.035em; line-height:1.25; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .clock-tool-actions { display:flex; justify-content:center; flex:none; gap:6px; }
-.clock-tool-button { min-height:25px; border:1px solid var(--wg-stroke); border-radius:6px; background:var(--wg-fill); color:var(--wg-text); padding:3px 9px; font-size:11px; cursor:pointer; }
-.clock-tool-button.primary { background:var(--wg-accent-text); border-color:transparent; color:var(--wg-tint-text,#fff); }
-.clock-tool-button:hover { filter:brightness(1.1); }
-.clock-tool-button:disabled { opacity:.4; cursor:default; }
-.clock-tools-panel button:focus-visible,.clock-mode-header button:focus-visible { outline:2px solid var(--wg-accent-text);outline-offset:2px; }
+.clock-tool-actions .wg-button { min-width:52px; }
 .clock-tools-panel.tools-small { gap:5px; }
 .tools-small .clock-counter strong { font-size:24px; }
 .tools-small .clock-counter .extra-eyebrow { font-size:10px; }
-.tools-small .clock-tool-button { font-size:10px; padding:3px 6px; min-height:23px; }
+.tools-small .wg-button { height:23px; min-width:0; padding:0 7px; font-size:10.5px; }
 .tools-small .extra-muted { font-size:9px; text-align:center; }
 .tools-large .clock-counter { flex:0 0 115px; }
 .tools-large .clock-counter strong { font-size:44px; }
@@ -701,7 +672,9 @@
 .tools-medium .clock-timer-presets button { font-size:10px; padding:2px 5px; }
 .tools-medium .timer-counter::after { width:130px; }
 .clock-laps { flex:1; min-height:0; overflow:auto; border-top:1px solid var(--wg-divider); padding-top:8px; font-variant-numeric:tabular-nums; }
+.clock-laps.compact { max-height: 80px; flex: 0 0 auto; margin-top: 8px; padding-top: 6px; font-size: 10.5px; }
 .clock-laps>div { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:6px 0; font-size:11px; color:var(--wg-text-2); }
+.clock-laps.compact>div { padding: 4px 0; gap: 6px; }
 .clock-laps strong { text-align:right; font-weight:500; color:var(--wg-text); }
 .clock-alarm-heading { display:flex; align-items:center; justify-content:space-between; flex:none; }
 .clock-alarm-heading .widget-icon-button { width:22px;height:22px; }
@@ -710,29 +683,47 @@
 .clock-alarm-edit { display:flex; flex:1; min-width:0; flex-direction:column; align-items:flex-start; gap:2px; border:0; background:transparent; color:var(--wg-text); text-align:left; padding:0; }
 .clock-alarm-edit strong { font-size:26px; font-weight:350; font-variant-numeric:tabular-nums; line-height:1.1; }
 .clock-alarm-edit span,.clock-alarm-edit small { font-size:10px; color:var(--wg-text-2); overflow:hidden; max-width:100%; text-overflow:ellipsis; white-space:nowrap; }
-.clock-alarm-toggle { width:29px;height:16px; flex:none; border-radius:9px; padding:2px; border:1px solid var(--wg-text-3); background:transparent; }
-.clock-alarm-toggle i { display:block; width:10px;height:10px;border-radius:50%;background:var(--wg-text-2); }
-.clock-alarm-toggle.on { background:var(--wg-accent-text);border-color:transparent; }
-.clock-alarm-toggle.on i { background:#fff;transform:translateX(12px); }
 .tools-small .clock-alarm-row { padding:3px 0;border-bottom:0; }
 .tools-small .clock-alarm-edit strong { font-size:28px; }
-.clock-tool-editor { position:absolute; z-index:20; inset:0; display:flex; flex-direction:column; gap:10px; padding:6px; overflow:auto; background:rgba(var(--wg-tint),.99); border-radius:8px; }
-.clock-tool-editor>strong { font-size:13px; }
-.clock-tool-editor label { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--wg-text-2); font-size:11px; }
-.clock-tool-editor input { min-width:0; width:70%; color:var(--wg-text); background:var(--wg-fill); border:1px solid var(--wg-stroke); border-radius:5px; padding:5px; font:inherit; color-scheme:light dark; }
-.clock-duration-fields { display:flex; gap:5px; }
-.clock-duration-fields label { display:flex; flex-direction:column; width:33%;gap:3px; }
-.clock-duration-fields input { width:100%; }
-.clock-weekdays { display:flex; gap:3px; margin-top:5px; }
-.clock-weekdays button { flex:1; padding:4px 0; border:1px solid var(--wg-stroke); border-radius:4px; color:var(--wg-text-2); background:var(--wg-fill); font-size:10px; }
-.clock-weekdays button.selected { background:var(--wg-accent-text);color:#fff; }
+/* Editors take over the whole widget, like a Windows Clock edit page. */
+.clock-tool-editor { position:fixed; z-index:20; inset:0; display:flex; flex-direction:column; gap:10px; padding:14px 14px 12px; overflow:auto; background:rgba(var(--wg-tint),.985); border-radius:var(--widget-radius,19px); animation:clock-editor-in .16s ease-out; }
+.clock-tool-editor>strong { flex:none; font-size:13px; font-weight:650; }
+.clock-tool-editor .vela-time-input { flex:none; align-self:center; }
+.clock-editor-field { display:grid; flex:none; gap:4px; color:var(--wg-text-2); font-size:11px; }
+.clock-editor-field .wg-textbox, .clock-editor-field .vela-date-field { width:100%; }
+.clock-editor-hint { display:flex; justify-content:space-between; gap:6px; color:var(--wg-text-3); font-size:10.5px; }
+.clock-editor-hint span:last-child { color:var(--wg-text-2); }
+.clock-tool-editor .clock-tool-actions { margin-top:auto; justify-content:flex-end; }
+.clock-tool-editor .clock-tool-actions .danger { margin-right:auto; }
+.clock-weekdays { display:flex; justify-content:space-between; gap:4px; }
+.clock-weekdays button { display:grid; width:30px; height:30px; flex:none; place-items:center; padding:0; color:var(--wg-text); border:1px solid var(--wg-control-stroke); border-bottom-color:var(--wg-control-edge); border-radius:50%; background:var(--wg-control); font-size:11.5px; cursor:pointer; transition:background .12s ease, color .12s ease; }
+.clock-weekdays button:hover { background:var(--wg-control-hover); }
+.clock-weekdays button.selected { color:#fff; border-color:transparent; background:var(--accent); font-weight:600; }
+.clock-weekdays button.selected:hover { background:color-mix(in srgb, var(--accent) 90%, white); }
 .clock-tool-error { color:var(--wg-danger);font-size:11px;margin:0; }
-.clock-delete-confirm { position:absolute; z-index:25; inset:0; display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:8px; padding:8px; border-radius:8px;background:rgba(var(--wg-tint),.99);font-size:12px; }
-.clock-delete-confirm p { width:100%;text-align:center; }
-.clock-management { --wg-text:var(--win-text); --wg-text-2:var(--win-text-2); --wg-text-3:var(--win-text-3); --wg-accent-text:var(--accent); --wg-fill:var(--win-control); --wg-stroke:var(--win-control-stroke); --wg-divider:var(--win-divider); --wg-danger:var(--win-danger); --wg-tint:255,255,255; }
+.clock-delete-confirm { position:fixed; z-index:25; inset:0; display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:8px; padding:14px; border-radius:var(--widget-radius,19px); background:rgba(var(--wg-tint),.985); font-size:12.5px; animation:clock-editor-in .16s ease-out; }
+.clock-delete-confirm p { width:100%; margin:0 0 6px; text-align:center; }
+@keyframes clock-editor-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .clock-tool-editor, .clock-delete-confirm { animation:none; } }
+/* Small: time, weekdays and the two buttons fit 170px without scrolling. */
+.tools-small .clock-tool-editor { gap:7px; padding:10px 10px 9px; }
+.tools-small .clock-tool-editor>strong, .tools-small .clock-editor-hint { display:none; }
+.tools-small .clock-weekdays { gap:2px; }
+.tools-small .clock-weekdays button { width:19px; height:19px; font-size:10px; }
+.tools-small .clock-editor-field .wg-textbox { height:26px; }
+.tools-medium .clock-tool-editor { flex-flow:row wrap; align-content:flex-start; column-gap:14px; row-gap:8px; }
+.tools-medium .clock-tool-editor>strong { width:100%; }
+.tools-medium .clock-tool-editor .vela-time-input { align-self:flex-start; }
+.tools-medium .clock-editor-side { display:grid; min-width:0; flex:1; gap:8px; }
+.tools-medium .clock-weekdays button { width:24px; height:24px; font-size:10.5px; }
+.tools-medium .clock-tool-editor .clock-tool-actions { width:100%; margin-top:0; }
+.tools-medium .clock-timer-editor { flex-direction:column; flex-wrap:nowrap; }
+.tools-medium .clock-timer-editor .vela-time-input { align-self:center; }
+.clock-editor-side { display:contents; }
+.clock-management { --wg-text:var(--win-text); --wg-text-2:var(--win-text-2); --wg-text-3:var(--win-text-3); --wg-accent-text:var(--accent); --wg-fill:var(--win-control); --wg-stroke:var(--win-control-stroke); --wg-divider:var(--win-divider); --wg-danger:var(--win-danger); --wg-tint:255,255,255; --wg-control:var(--win-control); --wg-control-hover:var(--win-control-hover); --wg-control-stroke:var(--win-control-stroke); --wg-control-edge:var(--win-control-stroke-bottom); --wg-control-focus:var(--win-flyout); --wg-control-strong:var(--win-toggle-off); }
 :root[data-theme="dark"] .clock-management { --wg-tint:44,44,44; }
 .clock-management.clock-tools-panel { min-height:300px; }
-.clock-management .clock-tool-editor { position:relative; min-height:300px; }
+.clock-management .clock-tool-editor, .clock-management .clock-delete-confirm { position:relative; inset:auto; min-height:300px; border-radius:6px; animation:none; }
 .clock-manager-tabs { display:flex; flex-wrap:wrap; gap:8px; }
 .clock-manager-tabs button { display:flex; align-items:center;gap:6px; }
 .clock-reminder { display:flex; min-height:100vh; align-items:center; justify-content:center; flex-direction:column; gap:10px; padding:20px; background:var(--win-bg); color:var(--win-text); --wg-text:var(--win-text); --wg-accent-text:var(--accent); --wg-fill:var(--win-control); --wg-stroke:var(--win-control-stroke); }
@@ -742,8 +733,6 @@
 .floating-reminder { position:fixed; z-index:100; right:16px;bottom:16px;width:340px;min-height:0;border:1px solid var(--win-card-stroke);border-radius:12px;box-shadow:0 16px 40px #0004; }
 @media(prefers-reduced-motion:no-preference) { .clock-display,.clock-tools-panel { animation:clock-mode-enter .18s ease-out; } @keyframes clock-mode-enter { from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none} } }
 
-:root[data-theme="dark"] .clock-window .clock-tool-button.primary,
-:root[data-theme="dark"] .clock-window .clock-weekdays button.selected { color:#18212f; }
 .clock-tools-panel.tools-medium .extra-muted { position:absolute; bottom:0; left:0; }
 
 .clock-tool-editor,.clock-laps,.clock-alarm-list { scrollbar-width:thin;scrollbar-color:var(--wg-text-3) transparent; }
@@ -755,8 +744,385 @@
 .tools-small .clock-timer-editor>strong,.tools-small .clock-timer-editor>.extra-muted { display:none; }
 
 .tools-medium .clock-timer-presets { display:grid;grid-template-columns:1fr 1fr;gap:4px; }
+.tools-medium .clock-timer-presets .wg-button { height:22px; min-width:0; padding:0 5px; font-size:10px; }
 .tools-medium .clock-tool-actions { top:16px; }
 
 .clock-manager-tabs .selected { color:var(--win-text);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--win-control));box-shadow:inset 0 -2px var(--accent); }
 .clock-management.tool-mode-alarm { min-height:0; }
 .clock-management .clock-alarm-list { max-height:360px; }
+
+/* ---------------------------------------------------------------------------
+   Shared Fluent controls for every widget editor (WinUI TextBox, Button,
+   ToggleSwitch, TimePicker, CalendarDatePicker, MenuFlyout). Tokens resolve
+   from --wg-* inside widgets and from --win-* inside .clock-management.
+   --------------------------------------------------------------------------- */
+.wg-textbox { min-width: 0; height: 30px; padding: 0 10px; color: var(--wg-text); border: 1px solid var(--wg-control-stroke); border-bottom-color: var(--wg-control-strong); border-radius: 4px; background: var(--wg-control); font: inherit; font-size: 12.5px; transition: background .12s ease; }
+.wg-textbox::placeholder { color: var(--wg-text-3); }
+.wg-textbox:hover { background: var(--wg-control-hover); }
+.wg-textbox:focus { border-bottom-color: var(--accent); outline: none; background: var(--wg-control-focus); box-shadow: inset 0 -1px 0 var(--accent); }
+:root .wg-textbox:focus-visible, :root .widget-window .wg-textbox:focus-visible, :root .note-editor:focus-visible { outline: none; }
+
+.wg-button { display: inline-flex; height: 28px; flex: none; align-items: center; justify-content: center; gap: 5px; padding: 0 11px; color: var(--wg-text); border: 1px solid var(--wg-control-stroke); border-bottom-color: var(--wg-control-edge); border-radius: 4px; background: var(--wg-control); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background .12s ease, color .12s ease; }
+.wg-button:hover:not(:disabled) { background: var(--wg-control-hover); }
+.wg-button:active:not(:disabled) { color: var(--wg-text-2); border-bottom-color: var(--wg-control-stroke); background: var(--wg-control-press, var(--wg-control-hover)); }
+.wg-button.accent { color: #fff; border-color: rgba(255, 255, 255, .08); border-bottom-color: rgba(0, 0, 0, .4); background: var(--accent); font-weight: 600; }
+.wg-button.accent:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 90%, white); }
+.wg-button.accent:active:not(:disabled) { color: rgba(255, 255, 255, .78); border-bottom-color: transparent; background: color-mix(in srgb, var(--accent) 80%, white); }
+.wg-button.danger { color: var(--wg-danger); }
+.wg-button:disabled { color: var(--wg-text-4); cursor: default; }
+.wg-button.accent:disabled { color: rgba(255, 255, 255, .7); border-color: transparent; background: var(--wg-text-4); }
+
+.wg-switch { position: relative; width: 40px; height: 20px; flex: none; padding: 0; border: 1px solid var(--wg-control-strong); border-radius: 10px; background: var(--wg-fill); cursor: pointer; transition: background .12s ease, border-color .12s ease; }
+.wg-switch > span { position: absolute; top: 50%; left: 4px; width: 12px; height: 12px; border-radius: 6px; background: var(--wg-text-2); transform: translateY(-50%); transition: left .16s cubic-bezier(.2, 0, 0, 1), width .12s ease, height .12s ease, background .12s ease; }
+.wg-switch:hover:not(:disabled) > span { left: 3px; width: 14px; height: 14px; }
+.wg-switch:active:not(:disabled) > span { width: 17px; }
+.wg-switch.on { border-color: var(--accent); background: var(--accent); }
+.wg-switch.on > span { left: 22px; background: #fff; }
+.wg-switch.on:hover:not(:disabled) > span { left: 21px; }
+.wg-switch.on:active:not(:disabled) > span { left: 18px; }
+.wg-switch:disabled { cursor: default; opacity: .45; }
+
+/* TimePicker: large digit segments with hover arrows, as in the Windows Clock app. */
+.vela-time-input { display: inline-flex; align-items: center; gap: 2px; color: var(--wg-text); font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.vela-time-part { display: flex; flex-direction: column; align-items: center; }
+.vela-time-segment { min-width: 1.5em; padding: 0 3px; border-radius: 6px; font-size: 40px; font-weight: 400; line-height: 1.15; text-align: center; cursor: ns-resize; outline: none; transition: background .12s ease, color .12s ease; }
+.vela-time-segment:hover { background: var(--wg-fill-hover); }
+.vela-time-segment:focus { color: var(--wg-accent-text); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+:root .widget-window .vela-time-segment:focus-visible { outline: none; }
+.vela-time-colon { padding-bottom: 4px; color: var(--wg-text-3); font-size: 32px; font-weight: 300; }
+.vela-time-step { display: grid; width: 100%; height: 16px; place-items: center; padding: 0; color: var(--wg-text-2); border: 0; border-radius: 4px; background: transparent; opacity: 0; cursor: pointer; transition: opacity .12s ease, background .12s ease; }
+.vela-time-input:hover .vela-time-step, .vela-time-input:focus-within .vela-time-step { opacity: 1; }
+.vela-time-step:hover { color: var(--wg-text); background: var(--wg-fill-hover); }
+.vela-time-input.compact .vela-time-segment { font-size: 27px; line-height: 1.1; }
+.vela-time-input.compact .vela-time-colon { padding-bottom: 2px; font-size: 22px; }
+.vela-time-input.compact .vela-time-step { height: 12px; }
+/* CalendarDatePicker field */
+.vela-date-field { display: inline-flex; min-width: 0; height: 30px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 8px 0 10px; color: var(--wg-text); border: 1px solid var(--wg-control-stroke); border-bottom-color: var(--wg-control-edge); border-radius: 4px; background: var(--wg-control); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; transition: background .12s ease; }
+.vela-date-field > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vela-date-field > svg { flex: none; color: var(--wg-text-2); }
+.vela-date-field.empty > span { color: var(--wg-text-3); }
+.vela-date-field:hover { background: var(--wg-control-hover); }
+.vela-date-field:active, .vela-date-field[data-state="open"] { color: var(--wg-text-2); background: var(--wg-control-press, var(--wg-control-hover)); }
+.vela-date-field.manager { width: 100%; height: 32px; color: var(--win-text); border-color: var(--win-control-stroke); border-bottom-color: var(--win-control-stroke-bottom); background: var(--win-control); font-size: 13px; }
+.vela-date-field.manager:hover, .vela-date-field.manager[data-state="open"] { background: var(--win-control-hover); }
+.vela-date-field.manager.empty > span { color: var(--win-text-3); }
+.vela-date-field.manager > svg { color: var(--win-text-2); }
+
+/* In widgets the calendar is a sheet inside the window; the manager gets a flyout. */
+.vela-date-overlay { position: fixed; inset: 0; z-index: 80; border-radius: var(--widget-radius, 19px); background: rgba(var(--wg-tint), .4); }
+.vela-date-sheet { position: fixed; top: 50%; left: 50%; z-index: 81; width: min(296px, calc(100vw - 12px)); max-height: calc(100vh - 12px); padding: 10px 10px 8px; overflow: hidden; color: var(--wg-text); border: 1px solid var(--wg-stroke); border-radius: min(12px, var(--widget-radius, 19px)); background: rgba(var(--wg-tint), .985); box-shadow: 0 8px 26px rgba(0, 0, 0, .22), inset 0 1px 0 var(--wg-highlight); transform: translate(-50%, -50%); animation: vela-flyout-in .16s cubic-bezier(.2, 0, 0, 1); }
+.vela-date-sheet.compact { width: min(220px, calc(100vw - 12px)); padding: 8px 8px 6px; border-radius: max(8px, calc(var(--widget-radius, 19px) - 4px)); }
+.vela-date-flyout { --wg-text: var(--win-text); --wg-text-2: var(--win-text-2); --wg-text-3: var(--win-text-3); --wg-text-4: color-mix(in srgb, var(--win-text) 26%, transparent); --wg-accent-text: var(--accent); --wg-fill-hover: var(--win-subtle-hover); --wg-fill-press: var(--win-subtle-press); --wg-tint: 249, 249, 249; z-index: 100; width: 300px; padding: 10px 10px 8px; color: var(--win-text); border: 1px solid var(--win-control-stroke-bottom); border-radius: 8px; background: var(--win-flyout); box-shadow: 0 8px 16px rgba(0, 0, 0, .14); animation: vela-flyout-in .16s cubic-bezier(.2, 0, 0, 1); }
+:root[data-theme="dark"] .vela-date-flyout { --wg-tint: 44, 44, 44; box-shadow: 0 8px 16px rgba(0, 0, 0, .26); }
+@keyframes vela-flyout-in { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
+
+.vela-calendar { display: flex; height: 100%; flex-direction: column; }
+.vela-calendar-header { display: flex; flex: none; align-items: center; gap: 2px; margin-bottom: 4px; }
+.vela-calendar-heading { min-width: 0; flex: 1; overflow: hidden; padding-left: 4px; font-size: 13.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.vela-calendar-icon-button, .vela-calendar-text-button { display: grid; height: 26px; flex: none; place-items: center; padding: 0; color: var(--wg-text-2); border: 0; border-radius: 4px; background: transparent; font: inherit; cursor: pointer; transition: background .12s ease, color .12s ease; }
+.vela-calendar-icon-button { width: 26px; }
+.vela-calendar-text-button { padding: 0 7px; color: var(--wg-accent-text); font-size: 11.5px; font-weight: 600; }
+.vela-calendar-icon-button:hover, .vela-calendar-text-button:hover { color: var(--wg-text); background: var(--wg-fill-hover); }
+.vela-calendar-text-button:hover { color: var(--wg-accent-text); }
+.vela-calendar-icon-button:disabled { color: var(--wg-text-4); background: transparent; cursor: default; }
+.vela-calendar-grid { width: 100%; flex: 1; border-collapse: collapse; table-layout: fixed; }
+.vela-calendar-weekday { height: 26px; color: var(--wg-text-3); font-size: 11px; font-weight: 600; }
+.vela-calendar-cell { padding: 1px 0; text-align: center; }
+.vela-calendar-day { display: inline-grid; width: 32px; height: 32px; place-items: center; color: var(--wg-text); border-radius: 50%; font-size: 12.5px; font-variant-numeric: tabular-nums; cursor: pointer; outline: none; transition: background .12s ease, color .12s ease, box-shadow .12s ease; }
+.vela-calendar-day:hover { background: var(--wg-fill-hover); }
+.vela-calendar-day:active { background: var(--wg-fill-press); }
+.vela-calendar-day[data-outside-view] { color: var(--wg-text-4); }
+.vela-calendar-day[data-disabled], .vela-calendar-day[data-unavailable] { color: var(--wg-text-4); text-decoration: line-through; pointer-events: none; }
+.vela-calendar-day[data-today] { color: #fff; background: var(--accent); font-weight: 650; }
+.vela-calendar-day[data-today]:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+.vela-calendar-day[data-selected] { color: var(--wg-accent-text); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 650; }
+.vela-calendar-day[data-today][data-selected] { color: #fff; box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 3.5px rgb(var(--wg-tint)); }
+:root .vela-calendar-day:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--wg-text); }
+:root .vela-calendar-day[data-selected]:focus-visible { box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 2px var(--wg-text); }
+/* Compact sheet (170px-high widgets): the whole month fits without scrolling. */
+.vela-calendar.compact .vela-calendar-header { margin-bottom: 0; }
+.vela-calendar.compact .vela-calendar-heading { font-size: 12px; }
+.vela-calendar.compact .vela-calendar-icon-button { width: 20px; height: 20px; }
+.vela-calendar.compact .vela-calendar-text-button { height: 20px; padding: 0 5px; font-size: 10.5px; }
+.vela-calendar.compact .vela-calendar-weekday { height: 14px; font-size: 9.5px; }
+.vela-calendar.compact .vela-calendar-cell { padding: 0; line-height: 0; }
+.vela-calendar.compact .vela-calendar-day { width: 18px; height: clamp(14px, calc((100vh - 66px) / 6), 20px); border-radius: 5px; font-size: 10.5px; line-height: 1; }
+/* MenuFlyout for per-task actions */
+.wg-menu { z-index: 70; min-width: 128px; padding: 4px; color: var(--wg-text); border: 1px solid var(--wg-stroke); border-radius: 8px; background: rgba(var(--wg-tint), .985); box-shadow: 0 8px 20px rgba(0, 0, 0, .2); animation: vela-flyout-in .14s cubic-bezier(.2, 0, 0, 1); }
+.wg-menu-item { display: flex; height: 28px; align-items: center; gap: 8px; padding: 0 9px; border-radius: 4px; font-size: 12px; cursor: pointer; outline: none; user-select: none; }
+.wg-menu-item[data-highlighted] { background: var(--wg-fill-hover); }
+.wg-menu-item.danger { color: var(--wg-danger); }
+.wg-menu-item svg { flex: none; }
+.wg-menu-separator { height: 1px; margin: 4px 2px; background: var(--wg-divider); }
+@media (prefers-reduced-motion: reduce) { .vela-date-sheet, .vela-date-flyout, .wg-menu { animation: none; } }
+
+/* Editor overlays reuse .clock-tool-actions; drop the medium layout's absolute placement there. */
+.tools-medium .clock-tool-editor .clock-tool-actions, .tools-medium .clock-delete-confirm .clock-tool-actions { position: static; width: 100%; }
+
+/* Editing is part of the paper, with a quiet native-style format strip. */
+.note-editor { padding: 2px 0 4px; border-radius: 0; background: transparent; font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; font-size: 13px; line-height: 1.75; }
+.note-stack.is-editing { border-radius: 0; }
+.note-format-bar { display: flex; flex: none; align-items: center; gap: 3px; padding: 5px 0 3px; border-top: 1px solid var(--wg-divider); }
+.note-format-bar button { display: grid; width: 27px; height: 26px; place-items: center; padding: 0; color: var(--wg-text-2); border: 0; border-radius: 5px; background: transparent; font-size: 13px; cursor: pointer; }
+.note-format-bar button:hover { color: var(--wg-text); background: var(--wg-fill-hover); }
+.note-format-bar button:active { background: var(--wg-fill-press); }
+.note-format-divider { width: 1px; height: 12px; margin: 0 4px; background: var(--wg-divider); }
+.note-window.size-small .note-format-bar { gap: 0; padding: 3px 0 0; }
+.note-window.size-small .note-format-bar button { width: 23px; height: 22px; font-size: 12px; }
+.note-window.size-small .note-format-divider { margin: 0 2px; }
+.note-window.size-medium .note-format-bar { padding-top: 3px; }
+.note-save-status.error { color: var(--wg-danger); }
+/* An input row in the list, never a second window inside the widget. */
+.todo-inline-composer { display: flex; flex-direction: column; flex: none; gap: 3px; min-width: 0; margin: 6px 0 2px; padding: 3px 0 5px; border-bottom: 1px solid var(--wg-divider); }
+.todo-inline-title { min-width: 0; width: 100%; height: 27px; padding: 0 2px; color: var(--wg-text); border: 0; outline: none; background: transparent; font: inherit; font-size: 13px; caret-color: var(--wg-accent-text); }
+.todo-inline-title::placeholder { color: var(--wg-text-3); }
+:root .todo-inline-title:focus-visible { outline: none; }
+.todo-inline-composer:focus-within { border-bottom-color: var(--wg-accent-text); }
+.todo-inline-meta { display: flex; min-width: 0; align-items: center; gap: 2px; height: 23px; }
+.todo-inline-meta .vela-date-field { width: auto; max-width: 120px; height: 23px; padding: 0 5px; border: 0; background: var(--wg-fill); font-size: 10.5px; gap: 4px; }
+.todo-inline-meta .widget-icon-button { width: 23px; height: 23px; }
+.todo-inline-meta .todo-inline-cancel { margin-left: auto; }
+.todo-inline-submit { color: var(--wg-accent-text); }
+.todo-inline-submit:disabled { color: var(--wg-text-4); cursor: default; }
+.todo-added-mark { color: var(--wg-accent-text); font-size: 10px; }
+.todo-small-actions { display: flex; align-items: center; gap: 6px; }
+.todo-widget.size-small.is-composing .todo-glance-head { height: 21px; }
+.todo-widget.size-small.is-composing .todo-big-count { font-size: 21px; line-height: 21px; }
+.todo-widget.size-small.is-composing .todo-glance-title { display: none; }
+.todo-widget.size-small .todo-inline-composer { margin-top: 3px; gap: 0; padding-bottom: 3px; }
+.todo-widget.size-small .todo-added-mark { display: none; }
+.todo-widget.size-medium .todo-inline-composer { margin-top: 0; }
+.todo-edit-form .vela-date-field { min-width: 0; width: auto; }
+/* Narrow date fields and compact calendar flyouts, shared by todo and alarms. */
+.vela-date-field { width: auto; max-width: 156px; gap: 6px; }
+.vela-date-field.manager { width: auto; max-width: 170px; }
+.vela-date-flyout { width: 244px; padding: 8px; }
+.vela-date-flyout.widget-picker { --wg-text: inherit; --wg-text-2: inherit; --wg-text-3: inherit; --wg-text-4: inherit; --wg-accent-text: inherit; --wg-fill-hover: inherit; --wg-fill-press: inherit; --wg-tint: inherit; max-width: calc(100vw - 12px); border-color: var(--wg-stroke); color: var(--wg-text); background: rgba(var(--wg-tint), .985); }
+.vela-date-flyout.compact { width: 208px; padding: 6px; }
+.vela-calendar-weekday { height: 22px; }
+.vela-calendar-day { width: 28px; height: 28px; font-size: 12px; }
+.vela-calendar.compact .vela-calendar-day { height: 16px; width: 18px; }
+.vela-calendar.compact .vela-calendar-header { height: 22px; }
+/* A single precise face for every clock size: fine ticks, ivory dial, red seconds. */
+.analog-clock { --dial: #faf9f6; --ink: #202020; --tick: #aaa8a3; display: block; flex: none; width: 164px; height: 164px; align-self: center; overflow: visible; filter: drop-shadow(0 2px 3px rgba(0,0,0,.12)); }
+:root[data-theme="dark"] .analog-clock { --dial: #29292c; --ink: #f5f4f1; --tick: #77777c; }
+.analog-rim { fill: var(--wg-stroke); }
+.analog-dial { fill: var(--dial); }
+.analog-ticks line { stroke: var(--tick); stroke-width: .8; }
+.analog-ticks line.major { stroke: var(--ink); stroke-width: 1.5; }
+.analog-number { fill: var(--ink); font-family: "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", sans-serif; font-size: 19px; font-weight: 500; text-anchor: middle; dominant-baseline: central; }
+.analog-hour, .analog-minute { stroke: var(--ink); stroke-linecap: round; }
+.analog-hour { stroke-width: 5.2; }
+.analog-minute { stroke-width: 3.6; }
+.analog-hub { fill: var(--ink); }
+.analog-second line { stroke: #ee5545; stroke-width: 1.35; }
+.analog-second circle { fill: #ee5545; }
+.analog-cap { fill: var(--dial); }
+.clock-analog-small { flex: 1; min-height: 0; gap: 4px; padding: 0; justify-content: center; }
+.clock-analog-small .analog-clock { width: 96px; height: 96px; }
+.clock-small-info strong { display: none; }
+.clock-small-info span { font-size: 10px; white-space: nowrap; }
+.clock-local .analog-clock { width: 96px; height: 96px; }
+.clock-local { align-items: center; gap: 5px; }
+.clock-local .extra-caption { font-size: 10px; white-space: nowrap; }
+.clock-window.size-large .analog-clock { width: 170px; height: 170px; margin-top: 4px; }
+/* Keep the counter and actions fixed; laps own the remaining scrollable area. */
+.tool-mode-stopwatch .clock-counter { flex: none; }
+.tool-mode-stopwatch.tools-small .clock-counter { height: 45px; }
+.tool-mode-stopwatch.tools-medium { display: grid; grid-template-columns: minmax(0,1fr) 145px; grid-template-rows: 57px minmax(0,1fr); column-gap: 8px; }
+.tool-mode-stopwatch.tools-medium .clock-counter { grid-row: 1; grid-column: 1; height: 57px; }
+.tool-mode-stopwatch.tools-medium > .clock-tool-actions { position: static; grid-row: 1; grid-column: 2; align-self: center; width: auto; }
+.tool-mode-stopwatch.tools-medium .clock-laps { grid-column: 1 / -1; grid-row: 2; }
+.tool-mode-stopwatch .clock-laps.compact { flex: 1 1 0; min-height: 0; max-height: none; margin-top: 0; padding-top: 3px; }
+.tool-mode-stopwatch.tools-small .clock-laps > div { padding: 3px 0; font-size: 9px; gap: 3px; }
+.tool-mode-stopwatch:not(.clock-management):not(.has-laps) { justify-content: center; }
+.tool-mode-stopwatch.tools-medium:not(.clock-management):not(.has-laps) { align-content: center; grid-template-rows: 57px; }
+.tool-mode-stopwatch:not(.clock-management).has-laps { padding-top: 8px; }
+.clock-management.clock-tools-panel { min-height: 0; }
+.clock-management.tool-mode-stopwatch, .clock-management.tool-mode-timer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; align-items: center; }
+.clock-management.tool-mode-stopwatch .clock-counter, .clock-management.tool-mode-timer .clock-counter { height: auto; min-height: 74px; align-items: flex-start; }
+.clock-management > .clock-tool-actions { justify-content: flex-end; }
+.clock-management .clock-laps { grid-column: 1 / -1; max-height: 200px; flex: none; }
+.clock-management .extra-empty-caption { grid-column: 1 / -1; margin: 0 !important; text-align: left; }
+.clock-management .clock-timer-presets { grid-column: 1 / -1; justify-content: flex-start; margin: 0; }
+.clock-management .clock-tool-editor { grid-column: 1 / -1; }
+.wg-button.accent { color: var(--accent-contrast); }
+.wg-switch.on > span { background: var(--accent-contrast); }
+
+.vela-calendar.compact .vela-calendar-heading { font-size: 11px; padding-left: 1px; }
+.vela-calendar.compact .vela-calendar-text-button { padding: 0 3px; }
+
+/* Month/year drill-down mirrors the familiar system calendar picker. */
+.vela-calendar-period { display: flex; min-width: 0; align-items: center; padding: 0; gap: 3px; }
+.vela-calendar-period button { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px; color: var(--wg-text); border: 0; border-radius: 2px; background: transparent; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.vela-calendar-period button:hover { background: var(--wg-fill-hover); }
+.vela-calendar-period button[aria-expanded="true"] { color: var(--wg-accent-text); }
+.vela-calendar.compact .vela-calendar-period { gap: 3px; }
+.vela-calendar.compact .vela-calendar-period button { gap: 2px; padding: 2px 3px; }
+.vela-calendar-footer { display: flex; flex: none; align-items: center; justify-content: flex-end; min-height: 28px; margin-top: 7px; padding-top: 2px; }
+.vela-calendar-footer > button:first-child:not(:last-child) { margin-right: auto; }
+.vela-calendar-day { border-radius: 2px; }
+.vela-calendar-day[data-today] { color: var(--wg-accent-text); background: transparent; box-shadow: inset 0 0 0 1px var(--accent); }
+.vela-calendar-day[data-today]:hover { background: var(--wg-fill-hover); }
+.vela-calendar-day[data-selected], .vela-calendar-day[data-today][data-selected] { color: #171717; background: #d0d0d0; box-shadow: inset 0 0 0 1px #f2f2f2; }
+.vela-calendar-day[data-selected]:hover { background: #dedede; }
+.vela-calendar.compact .vela-calendar-day { height: 15px; border-radius: 1px; }
+.vela-calendar.compact .vela-calendar-footer { min-height: 18px; margin-top: 2px; padding-top: 1px; }
+.vela-calendar.compact .vela-calendar-footer .vela-calendar-text-button { height: 17px; }
+.vela-calendar.compact .vela-calendar-icon-button svg { width: 14px; height: 14px; }
+.vela-calendar-chooser { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 6px 0; }
+.vela-calendar-chooser button { height: 41px; padding: 0; color: var(--wg-text); border: 0; border-radius: 5px; background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
+.vela-calendar-chooser button:hover { background: var(--wg-fill-hover); }
+.vela-calendar-chooser button[aria-pressed="true"] { color: var(--wg-accent-text); background: color-mix(in srgb,var(--accent) 12%,transparent); box-shadow: inset 0 0 0 1px var(--accent); }
+.vela-calendar-chooser button:disabled { color: var(--wg-text-4); background: transparent; box-shadow: none; cursor: default; }
+.vela-calendar.compact .vela-calendar-chooser { padding: 3px 0; gap: 2px; }
+.vela-calendar.compact .vela-calendar-chooser button { height: 24px; font-size: 11px; }
+/* Reveal the small clock's corner switch on hover or keyboard focus in every mode. */
+.clock-window.clock-immersive { padding: 0; }
+.clock-immersive .clock-display, .clock-immersive .clock-analog-small { width: 100%; height: 100%; padding: 0; }
+.clock-immersive .analog-clock.square { width: 100%; height: 100%; filter: none; }
+.clock-compact .compact-mode-header { position: absolute; right: 8px; bottom: 8px; z-index: 5; height: 24px; margin: 0; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+.clock-compact:hover .compact-mode-header, .clock-compact .compact-mode-header:focus-within, .clock-compact .compact-mode-header.menu-open { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .clock-compact .compact-mode-header { opacity: 1; pointer-events: auto; } }
+@media (prefers-reduced-motion: reduce) { .clock-compact .compact-mode-header { transition: none; } }
+.clock-compact .clock-mode-picker { width: 24px; height: 24px; justify-content: center; padding: 0; color: var(--wg-text-2); background: var(--wg-control); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.clock-compact .clock-mode-menu { top: auto; right: 8px; bottom: 38px; left: auto; width: 144px; }
+.clock-compact .clock-running-dot { position: absolute; right: 29px; }
+
+.clock-compact:not(.clock-immersive) .clock-tools-panel { margin-bottom: 23px; }
+.clock-compact-footer { position: absolute; left: 16px; right: 44px; bottom: 8px; height: 24px; display: flex; align-items: center; color: var(--wg-text-3); font-size: 10px; }
+.clock-compact .clock-mode-picker { border: 1px solid var(--wg-control-stroke); }
+.clock-mode-menu button > span { flex: 1; text-align: left; }
+.clock-mode-menu button[aria-current="true"] { color: var(--wg-accent-text); background: color-mix(in srgb,var(--accent) 10%,transparent); }
+/* Calendar agenda and upcoming list share local events and holiday cards. */
+.cal-schedule { display:flex; flex-direction:column; gap:8px; }
+.cal-schedule-toolbar { display:flex; flex:none; align-items:center; justify-content:space-between; height:24px; color:var(--wg-accent-text); font-size:12px; font-weight:600; }
+.cal-schedule-toolbar>div { display:flex; gap:2px; }
+.cal-schedule-toolbar .widget-icon-button { width:22px; height:22px; }
+.cal-list-entries { flex:1; min-height:0; display:flex; flex-direction:column; gap:13px; overflow:hidden; }
+.cal-list-entry { min-width:0; }
+.cal-list-entry>header { display:flex; align-items:baseline; gap:7px; margin-bottom:6px; color:var(--wg-text-2); font-size:12px; }
+.cal-list-entry>header.today { color:var(--wg-accent-text); }
+.cal-list-entry>header>span { color:var(--wg-text-3); font-size:10px; }
+.cal-event-pill { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:25px; gap:6px; padding:4px 7px; border:0; border-left:3px solid var(--event-color); border-radius:5px; background:color-mix(in srgb,var(--event-color) 15%,transparent); color:var(--wg-text); font:inherit; font-size:11px; text-align:left; }
+button.cal-event-pill { cursor:pointer; }
+.cal-event-pill strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:550; }
+.cal-event-pill>span { flex:none; color:var(--wg-text-2); font-size:10px; }
+.cal-event-pill.holiday { color:var(--event-color); }
+.cal-event-pill.holiday>span { color:inherit; }
+:root[data-theme="dark"] .cal-event-pill.holiday { color:color-mix(in srgb,var(--event-color) 75%,white); }
+.cal-event-pill:hover { background:color-mix(in srgb,var(--event-color) 23%,transparent); }
+.cal-event-pill>button { width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.cal-schedule-pager { display:flex; flex:none; justify-content:center; align-items:center; gap:8px; height:22px; color:var(--wg-text-3); font-size:10px; }
+.cal-schedule-pager .widget-icon-button { width:22px; height:22px; }
+.cal-agenda-days { flex:1; min-height:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+.cal-agenda-days.single { grid-template-columns:1fr; }
+.cal-agenda-day { display:flex; flex-direction:column; min-width:0; min-height:0; }
+.cal-agenda-date { display:flex; align-items:center; gap:8px; min-height:43px; margin-bottom:5px; }
+.cal-agenda-date>strong { color:var(--wg-text); font-size:34px; font-weight:300; line-height:1; }
+.cal-agenda-date>div { display:flex; flex-direction:column; gap:3px; color:var(--wg-accent-text); font-size:11px; }
+.cal-agenda-date small { color:var(--wg-text-3); font-size:10px; }
+.cal-all-day { flex:none; height:53px; overflow:auto; scrollbar-width:thin; display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+.cal-no-all-day { color:var(--wg-text-4); font-size:10px; padding:5px 0; }
+.cal-timeline-scroll { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--wg-text-4) transparent; }
+.cal-timeline-scroll::-webkit-scrollbar { width:3px; }
+.cal-timeline-scroll::-webkit-scrollbar-track { background:transparent; }
+.cal-timeline-scroll::-webkit-scrollbar-thumb { background:var(--wg-text-4); border-radius:3px; }
+.cal-timeline { position:relative; height:744px; margin:6px 0; display:grid; grid-template-rows:repeat(24,31px); }
+.cal-hour-line { display:flex; align-items:flex-start; gap:5px; color:var(--wg-text-3); font-size:9px; }
+.cal-hour-line>span { flex:none; width:23px; transform:translateY(-5px); }
+.cal-hour-line::after { content:''; height:1px; flex:1; background:var(--wg-divider); }
+.cal-time-block { position:absolute; z-index:1; min-height:7px; padding:3px 4px; overflow:hidden; border:0; border-left:2px solid var(--event-color); border-radius:3px; background:color-mix(in srgb,var(--event-color) 25%,rgb(var(--wg-tint))); color:var(--wg-text); text-align:left; font:inherit; cursor:pointer; }
+.cal-time-block strong,.cal-time-block small { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:10px; }
+.cal-time-block small { font-size:9px; color:var(--wg-text-2); }
+.cal-now-line { position:absolute; z-index:2; right:0; left:25px; height:1px; background:#ee555a; pointer-events:none; }
+.cal-now-line::before { content:''; position:absolute; left:-3px; top:-2px; width:5px; height:5px; border-radius:50%; background:#ee555a; }
+.cal-agenda-compact-entries { display:flex; flex-direction:column; gap:5px; min-height:0; }
+.cal-schedule-empty { margin:auto 0; color:var(--wg-text-3); font-size:12px; line-height:1.7; text-align:center; }
+.cal-schedule-empty span,.cal-more-events { color:var(--wg-text-4); font-size:9px; }
+.cal-schedule.size-small { gap:4px; padding:11px 13px; }
+.cal-schedule.size-small .cal-schedule-toolbar { height:20px; font-size:10px; }
+.cal-schedule.size-small .cal-agenda-date { min-height:33px; margin-bottom:4px; }
+.cal-schedule.size-small .cal-agenda-date>strong { font-size:29px; }
+.cal-schedule.size-small .cal-event-pill { font-size:10px; min-height:22px; padding:3px 5px; }
+.cal-schedule.size-small .cal-event-pill>span { font-size:8px; }
+.cal-schedule.size-small .cal-list-entries { gap:6px; }
+.cal-schedule.size-small .cal-list-entry>header { font-size:10px; margin-bottom:3px; }
+.cal-schedule.size-small .cal-list-entry>header>span { display:none; }
+.cal-schedule.size-medium .cal-list-entries { gap:5px; }
+.cal-schedule.size-medium .cal-agenda-date { min-height:30px; margin-bottom:3px; }
+.cal-schedule.size-medium .cal-agenda-date>strong { font-size:28px; }
+.cal-schedule.size-medium .cal-agenda-compact-entries { gap:3px; }
+.cal-schedule.size-medium .cal-list-entry>header { font-size:10px; margin-bottom:2px; }
+.cal-schedule.size-medium .cal-event-pill { min-height:21px; padding:2px 6px; }
+.cal-event-editor { position:absolute; z-index:10; inset:0; padding:13px; display:flex; flex-direction:column; gap:9px; overflow:auto; scrollbar-width:thin; border-radius:var(--widget-radius); background:rgb(var(--wg-tint)); color:var(--wg-text); font-size:11px; }
+.cal-event-editor header,.cal-event-editor footer { display:flex; align-items:center; justify-content:space-between; gap:6px; flex:none; }
+.cal-event-editor label { display:flex; flex-direction:column; gap:4px; flex:none; color:var(--wg-text-2); }
+.cal-event-editor .wg-textbox { width:100%; min-width:0; }
+.cal-event-editor::-webkit-scrollbar { width:3px; }
+.cal-event-editor::-webkit-scrollbar-track { background:transparent; }
+.cal-event-editor::-webkit-scrollbar-thumb { background:var(--wg-text-4); border-radius:3px; }
+.cal-schedule.size-small .cal-event-pill.holiday>span { display:none; }
+.size-small .cal-event-editor .cal-event-dates { grid-template-columns:1fr; }
+.cal-event-dates { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; flex:none; }
+.cal-event-dates .vela-date-field { width:100%; font-size:11px; }
+.cal-event-editor .cal-event-all-day,.cal-event-editor .cal-event-color { flex-direction:row; align-items:center; gap:8px; }
+.cal-event-color input { width:30px; height:24px; padding:0; border:0; background:transparent; }
+.cal-event-editor footer { margin-top:auto; justify-content:flex-end; padding-top:5px; }
+.cal-event-editor footer>button:first-child:not(:last-child) { margin-right:auto; }
+.cal-event-editor.in-manager { position:static; width:100%; padding:0; background:transparent; border-radius:0; font-size:13px; gap:12px; }
+.cal-pref-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+.cal-local-event-dot { position:absolute; bottom:2px; width:3px; height:3px; border-radius:50%; background:var(--wg-accent-text); }
+.cal-style-shortcuts { position:absolute; z-index:3; right:8px; bottom:6px; display:flex; gap:2px; padding:2px; border-radius:5px; background:rgb(var(--wg-tint)); opacity:0; pointer-events:none; }
+.calendar-widget:hover .cal-style-shortcuts,.cal-style-shortcuts:focus-within { opacity:1; pointer-events:auto; }
+.cal-style-shortcuts .widget-icon-button { width:20px; height:20px; }
+@media (hover:none) { .cal-style-shortcuts {opacity:1;pointer-events:auto;} }
+
+/* Reveal secondary navigation only near the lower edge, without moving content. */
+.immersive-footer-zone { position:relative; flex:none; display:flex; align-items:flex-end; justify-content:center; }
+.immersive-footer-zone::before { content:''; position:absolute; inset:-8px 0 0; }
+.immersive-footer { position:relative; opacity:0; pointer-events:none; transition:opacity .16s ease; background:rgb(var(--wg-tint)); border:1px solid var(--wg-stroke); border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+.immersive-footer-zone:hover .immersive-footer,
+.immersive-footer-zone:has(:focus-visible) .immersive-footer,
+.immersive-footer-zone.has-notice .immersive-footer { opacity:1; pointer-events:auto; }
+.cal-footer-zone { position:absolute; z-index:3; left:16px; right:16px; bottom:6px; height:24px; }
+.cal-schedule.size-small .cal-footer-zone { left:13px; right:13px; }
+.cal-schedule-pager { height:24px; gap:5px; padding:0 7px; }
+.cal-schedule-pager .widget-icon-button { width:20px; height:20px; }
+.cal-agenda-days,.cal-list-entries { padding-bottom:16px; }
+.note-footer-zone { position:absolute; z-index:3; bottom:5px; left:16px; right:16px; height:28px; }
+.note-footer { width:100%; min-height:28px; padding:0; gap:8px; background:transparent; border:0; box-shadow:none; }
+.note-footer :is(.note-word-count,.note-save-status,.todo-pagination) { background:rgb(var(--wg-tint)); border:1px solid var(--wg-stroke); border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+.note-word-count { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; width:28px; height:28px; color:var(--wg-text-2); font-variant-numeric:tabular-nums; }
+.note-word-count strong { font-size:9px; font-weight:550; line-height:11px; }
+.note-word-count.long-count strong { font-size:8px; }
+.note-word-count small { font-size:7px; line-height:8px; }
+.note-footer > .note-save-status { padding:3px 7px; max-width:calc(100% - 86px); }
+.note-footer .todo-pagination { flex:none; margin-left:auto; min-height:26px; gap:6px; padding:0 6px; }
+.note-footer .todo-page-actions .widget-icon-button { width:20px; height:20px; }
+.note-window .note-content { padding-bottom:28px; }
+.note-window .note-format-bar { margin-bottom:24px; }
+.note-window:is(.size-small,.size-medium) { padding:12px; }
+.note-window:is(.size-small,.size-medium) .note-header { min-height:22px; margin-bottom:4px; }
+.note-window:is(.size-small,.size-medium) .note-footer-zone { left:12px; right:12px; bottom:4px; }
+.note-window:is(.size-small,.size-medium) .note-save-status { font-size:9px; }
+.note-window.size-small .note-footer { gap:4px; }
+@media (hover:none) { .immersive-footer { opacity:1; pointer-events:auto; } }
+@media (prefers-reduced-motion:reduce) { .immersive-footer { transition:none; } }
+
+/* Timelines run to the lower edge; the capsule appears above them on demand. */
+.cal-schedule.cal-style-agenda { padding-bottom:6px; }
+.cal-schedule.cal-style-agenda .cal-agenda-days { padding-bottom:0; }
+.cal-schedule.cal-style-agenda.size-large .cal-timeline { margin-bottom:30px; }
+.cal-schedule-pager .widget-icon-button,.note-footer .todo-page-actions .widget-icon-button { border-radius:50%; }
+
+.cal-schedule.cal-style-agenda .cal-agenda-compact-entries { flex:1; overflow-y:auto; overscroll-behavior:contain; padding-bottom:30px; scrollbar-width:thin; scrollbar-color:var(--wg-text-4) transparent; }
+.cal-agenda-compact-entries > * { flex:none; }
+.cal-agenda-compact-entries::-webkit-scrollbar { width:3px; }
+.cal-agenda-compact-entries::-webkit-scrollbar-track { background:transparent; }
+.cal-agenda-compact-entries::-webkit-scrollbar-thumb { background:var(--wg-text-4); border-radius:3px; }
+
+.calendar-widget :is(.cal-small,.cal-today-panel) .cal-eyebrow { color:var(--wg-text); }
+.calendar-widget :is(.cal-small,.cal-today-panel).rest-day :is(.cal-eyebrow,.cal-hero-day) { color:var(--wg-accent-text); }
+.calendar-widget :is(.cal-small,.cal-today-panel):not(.rest-day) .cal-holiday-caption,
+.calendar-widget:has(.date-cell.selected:not(.rest-day)) .calendar-footer-date .cal-holiday-caption { color:var(--wg-text-2); }

@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { isNativeApp } from "../lib/backend";
 import AppIcon from "./AppIcon.vue";
 import { snapshot, setCalendarSettings, checkHolidayUpdates } from "../lib/store";
-import type { CalendarSettings } from "../types";
+type CalendarToggle = 'showHolidays' | 'showWorkdays' | 'autoUpdate';
 const calendar = computed(() => snapshot.value.settings.calendar);
 const cache = computed(() => snapshot.value.holidays);
 const busy = ref(false);
@@ -20,14 +20,14 @@ onMounted(() => {
   });
 });
 onUnmounted(() => { disposed = true; clearResult(); unlistenClosed?.(); });
-const controls: { key: keyof CalendarSettings; label: string; description: string }[] = [
+const controls: { key: CalendarToggle; label: string; description: string }[] = [
   { key: "showHolidays", label: "显示节假日", description: "显示中国大陆官方放假安排" },
   { key: "showWorkdays", label: "显示调休", description: "标记节假日调休的上班日期" },
   { key: "autoUpdate", label: "自动更新节假日", description: "开启后联网检查，最多每天一次；断网时继续使用本地数据" },
 ];
 const coverage = computed(() => cache.value.data.years.map(y => y.year).join("、"));
 function timeLabel(time: number | null): string { return time ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "short", timeStyle: "short" }).format(time) : "尚未检查"; }
-async function toggle(key: keyof CalendarSettings) {
+async function toggle(key: CalendarToggle) {
   busy.value = true; error.value = "";
   try { await setCalendarSettings({ ...calendar.value, [key]: !calendar.value[key] }); }
   catch (e) { error.value = typeof e === "string" ? e : "没有保存成功，请重试。"; }

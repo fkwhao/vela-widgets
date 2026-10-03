@@ -20,3 +20,11 @@ test("large pages allow room for dates and inline editing without losing tasks",
 test("empty and shrinking task sets always have a valid page", () => {
   assert.deepEqual(paginateTodos([],"small"),[[]]); assert.equal(paginateTodos(items.slice(0,1),"small").length,1);
 });
+
+test("inline composer reserves list space without losing tasks", () => {
+  for (const [size, reserved, capacity] of [["small",48,1],["medium",48,2],["large",68,3]]) {
+    const pages = paginateTodos(items,size,null,reserved);
+    assert.equal(pages[0].length,capacity);
+    assert.deepEqual(pages.flat(),items);
+  }
+});

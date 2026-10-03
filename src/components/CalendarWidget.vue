@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
+import CalendarSchedule from "./CalendarSchedule.vue";
+import CalendarEventEditor from "./CalendarEventEditor.vue";
+import { eventsForDay } from "../lib/calendarEvents";
 import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend";
-import { setWidgetEnabled, setWidgetLayer, setWidgetSize, snapshot } from "../lib/store";
+import { setCalendarSettings, setWidgetEnabled, setWidgetLayer, setWidgetSize, snapshot } from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
-import type { WidgetSize } from "../types";
-import { holidayLabel, visibleHoliday } from "../lib/holidays";
+import type { CalendarEvent, WidgetSize } from "../types";
+import { holidayLabel, visibleHoliday, isCalendarRestDay } from "../lib/holidays";
 
 interface CalendarCell {
   date: Date;
@@ -19,6 +22,11 @@ const visibleMonth = ref(new Date(today.value.getFullYear(), today.value.getMont
 const selectedDate = ref(dateKey(today.value));
 const menu = ref<{ x: number; y: number } | null>(null);
 const notice = ref("");
+const eventEditor = ref(false);
+const editingEvent = ref<CalendarEvent | undefined>();
+function openEvent(event?: CalendarEvent) { editingEvent.value=event;eventEditor.value=true; }
+const selectedEvents = computed(()=>eventsForDay(snapshot.value.settings.calendar.events,selectedDate.value));
+async function changeStyle(style: 'agenda'|'list') { try { await setCalendarSettings({...snapshot.value.settings.calendar,style}); } catch { showNotice('样式没有保存成功。'); } }
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -45,6 +53,7 @@ const previewSize = computed(() => isNativeApp() ? undefined : { width: `${size.
 const todayKey = computed(() => dateKey(today.value));
 const holidaySettings = computed(() => snapshot.value.settings.calendar);
 const holidayMap = computed(() => new Map(snapshot.value.holidays.data.years.flatMap(y => y.days.map(day => [day.date, day] as const))));
+function restDay(date: Date, key = dateKey(date)) { return isCalendarRestDay(date, holidayMap.value.get(key)); }
 function holidayFor(key: string) { return visibleHoliday(holidayMap.value.get(key), holidaySettings.value); }
 function holidayText(key: string): string { const day = holidayFor(key); return day ? holidayLabel(day) : ""; }
 const todayHoliday = computed(() => holidayText(todayKey.value));
@@ -52,7 +61,7 @@ const selectedHoliday = computed(() => holidayText(selectedDate.value));
 const visibleYearKnown = computed(() => snapshot.value.holidays.data.years.some(y => y.year === visibleMonth.value.getFullYear()));
 const showHolidayData = computed(() => holidaySettings.value.showHolidays || holidaySettings.value.showWorkdays);
 function cellLabel(cell: CalendarCell): string {
-  return [new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date), holidayText(cell.key)].filter(Boolean).join('，');
+  return [new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date), holidayText(cell.key), ...eventsForDay(snapshot.value.settings.calendar.events,cell.key).map(e=>`${e.title} ${e.allDay?'全天':e.startTime}`)].filter(Boolean).join('，');
 }
 const weekStartsMonday = computed(() => snapshot.value.settings.weekStartsMonday);
 
@@ -178,16 +187,19 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <CalendarSchedule v-if="holidaySettings.style !== 'month'" />
   <main
+    v-else
     class="widget-window calendar-widget"
     :style="previewSize"
     :class="[`size-${size}`, { 'widget-draggable': !widget.locked }]"
-    :data-tauri-drag-region="size === 'small' ? dragRegion : undefined"
+    :data-tauri-drag-region="undefined"
     @contextmenu.prevent.stop="openContextMenu"
   >
+    <div class="cal-style-shortcuts"><button class="widget-icon-button" aria-label="查看日程" @click="changeStyle('agenda')"><AppIcon name="clock" :size="14" /></button><button class="widget-icon-button" aria-label="查看日程列表" @click="changeStyle('list')"><AppIcon name="grid" :size="14" /></button><button class="widget-icon-button" aria-label="新建日程" @click="openEvent()"><AppIcon name="plus" :size="14" /></button></div>
     <!-- Small: today at a glance -->
     <template v-if="size === 'small'">
-      <div class="cal-small">
+      <div class="cal-small" :class="{ 'rest-day': restDay(today) }" :data-tauri-drag-region="dragRegion">
         <span class="cal-eyebrow">{{ todayWeekday }}</span>
         <strong class="cal-hero-day">{{ today.getDate() }}</strong>
         <span class="cal-caption">{{ todayMonthLabel }}</span>
@@ -198,7 +210,7 @@ onUnmounted(() => {
     <!-- Medium: today beside a browsable month -->
     <template v-else-if="size === 'medium'">
       <div class="cal-medium">
-        <div class="cal-today-panel" :data-tauri-drag-region="dragRegion">
+        <div class="cal-today-panel" :class="{ 'rest-day': restDay(today) }" :data-tauri-drag-region="dragRegion">
           <span class="cal-eyebrow">{{ todayWeekday }}</span>
           <strong class="cal-hero-day">{{ today.getDate() }}</strong>
           <span class="cal-caption">{{ todayMonthLabel }}</span>
@@ -208,7 +220,7 @@ onUnmounted(() => {
           <header class="cal-mini-header">
             <strong aria-live="polite" :data-tooltip="showHolidayData && !visibleYearKnown ? '该年份的假期安排尚未收录' : undefined">{{ yearTitle }}年{{ monthTitle }}<i v-if="showHolidayData && !visibleYearKnown" class="cal-data-missing" aria-label="假期安排尚未收录">·</i></strong>
             <div class="cal-mini-actions">
-              <button v-if="!showingToday" class="widget-chip" aria-label="回到今天" @click="goToToday">今</button>
+              <button v-if="!showingToday" class="widget-icon-button" aria-label="回到今天" data-tooltip="回到今天" @click="goToToday"><AppIcon name="return-today" :size="13" /></button>
               <button class="widget-icon-button" aria-label="上个月" @click="moveMonth(-1)"><AppIcon name="chevron-left" :size="13" /></button>
               <button class="widget-icon-button" aria-label="下个月" @click="moveMonth(1)"><AppIcon name="chevron-right" :size="13" /></button>
             </div>
@@ -219,7 +231,7 @@ onUnmounted(() => {
               v-for="cell in miniMonthCells"
               :key="cell.key"
               class="cal-mini-day"
-              :class="{ outside: !cell.inMonth, today: cell.key === todayKey }"
+              :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate, 'rest-day': restDay(cell.date, cell.key) }"
               :data-tooltip="cell.inMonth ? cellLabel(cell) : undefined"
               :aria-label="cell.inMonth ? cellLabel(cell) : undefined"
             >{{ cell.inMonth ? cell.date.getDate() : "" }}<i v-if="cell.inMonth && holidayFor(cell.key)" class="cal-holiday-dot" :class="holidayFor(cell.key)?.type" aria-hidden="true"></i></span>
@@ -234,7 +246,7 @@ onUnmounted(() => {
         <h1 class="cal-large-title"><span class="accent">{{ monthTitle }}</span><span class="year">{{ yearTitle }}</span></h1>
         <div class="cal-large-actions">
           <transition name="fade-chip">
-            <button v-if="!showingToday" class="widget-chip" aria-label="回到今天" @click="goToToday">今天</button>
+            <button v-if="!showingToday" class="widget-icon-button" aria-label="回到今天" data-tooltip="回到今天" @click="goToToday"><AppIcon name="return-today" :size="16" /></button>
           </transition>
           <button class="widget-icon-button" aria-label="上个月" @click="moveMonth(-1)"><AppIcon name="chevron-left" :size="16" /></button>
           <button class="widget-icon-button" aria-label="下个月" @click="moveMonth(1)"><AppIcon name="chevron-right" :size="16" /></button>
@@ -248,21 +260,23 @@ onUnmounted(() => {
             v-for="cell in cells"
             :key="cell.key"
             class="date-cell"
-            :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate }"
+            :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate, 'rest-day': restDay(cell.date, cell.key) }"
             :aria-label="cellLabel(cell)"
             :data-tooltip="cellLabel(cell)"
             :aria-pressed="cell.key === selectedDate"
             @click="selectedDate = cell.key"
-          ><span>{{ cell.date.getDate() }}</span><i v-if="holidayFor(cell.key)" class="cal-holiday-mark" :class="holidayFor(cell.key)?.type" aria-hidden="true">{{ holidayFor(cell.key)?.type === 'holiday' ? '休' : '班' }}</i></button>
+            @dblclick="openEvent(eventsForDay(snapshot.settings.calendar.events,cell.key)[0])"
+          ><span>{{ cell.date.getDate() }}</span><i v-if="holidayFor(cell.key)" class="cal-holiday-mark" :class="holidayFor(cell.key)?.type" aria-hidden="true">{{ holidayFor(cell.key)?.type === 'holiday' ? '休' : '班' }}</i><i v-if="eventsForDay(snapshot.settings.calendar.events,cell.key).length" class="cal-local-event-dot" aria-hidden="true"></i></button>
         </div>
       </section>
 
       <footer class="calendar-footer" aria-label="已选择日期">
         <div class="calendar-footer-date"><strong>{{ selectedSummary.label }}</strong><small v-if="selectedHoliday" class="cal-holiday-caption">{{ selectedHoliday }}</small><small v-else-if="showHolidayData && !snapshot.holidays.data.years.some(y => y.year === Number(selectedDate.slice(0, 4)))">该年份假期安排尚未收录</small></div>
-        <span class="calendar-relative" :class="{ current: selectedSummary.relative === '今天' }">{{ selectedSummary.relative }}</span>
+        <button v-if="selectedEvents.length" class="widget-chip" :data-tooltip="selectedEvents.map(e=>e.title).join('\n')" @click="openEvent(selectedEvents[0])">{{ selectedEvents.length }} 项日程</button><span v-else class="calendar-relative" :class="{ current: selectedSummary.relative === '今天' }">{{ selectedSummary.relative }}</span>
       </footer>
     </template>
 
+    <CalendarEventEditor v-if="eventEditor" :event="editingEvent" :date="selectedDate" @close="eventEditor=false" />
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
     <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>

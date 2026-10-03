@@ -140,6 +140,7 @@
 .section-title.first { margin-top: 0; }
 
 .settings-group { display: grid; gap: 4px; }
+.calendar-style-settings { margin-top: 20px; }
 .settings-card {
   position: relative;
   display: flex;
@@ -193,7 +194,7 @@
   cursor: default;
   transition: background .12s ease, border-color .12s ease;
 }
-:root[data-theme="dark"] .toggle-switch { background: rgba(0, 0, 0, .1); }
+:root[data-theme="dark"] .toggle-switch:not(.on) { background: rgba(0, 0, 0, .1); }
 .toggle-switch span {
   position: absolute;
   top: 50%;
@@ -395,3 +396,5 @@
 .note-retention-confirm button + button { margin-left: 8px; }
 
 .clock-tools-heading { display: flex; align-items: center; gap: 6px; }
+
+.toggle-switch.on span { background: var(--accent-contrast); }

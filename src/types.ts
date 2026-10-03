@@ -29,7 +29,10 @@ export interface ClockAction { action: string; id?: number; seconds?: number; mo
 export const clockModes: { value: ClockMode; label: string; icon: string }[] = [{ value: "clock", label: "时钟", icon: "clock" }, { value: "alarm", label: "闹钟", icon: "alarm" }, { value: "stopwatch", label: "秒表", icon: "stopwatch" }, { value: "timer", label: "计时器", icon: "hourglass" }];
 export const defaultClockTools: ClockTools = { mode: "clock", alarms: [], timer: { durationSeconds: 300, remainingMs: 300000, deadline: null }, stopwatch: { elapsedMs: 0, startedAt: null, laps: [] }, alerts: [] };
 export interface ClockCity { name: string; timeZone: string }
-export interface CalendarSettings { showHolidays: boolean; showWorkdays: boolean; autoUpdate: boolean }
+export type CalendarStyle = "month" | "agenda" | "list";
+export interface CalendarEvent { id: number; title: string; date: string; endDate: string; allDay: boolean; startTime: string; endTime: string; location: string; color: string }
+export interface CalendarSettings { showHolidays: boolean; showWorkdays: boolean; autoUpdate: boolean; style: CalendarStyle; events: CalendarEvent[] }
+export const calendarStyles: { value: CalendarStyle; label: string }[] = [{ value: "month", label: "日期 / 月历" }, { value: "agenda", label: "日程" }, { value: "list", label: "列表" }];
 export interface HolidayDay { date: string; name: string; type: "holiday" | "workday" }
 export interface HolidayYear { year: number; source: string; days: HolidayDay[] }
 export interface HolidayData { schemaVersion: number; revision: number; updatedAt: string; years: HolidayYear[] }
@@ -40,7 +43,7 @@ export interface NoteSettings { text: string; color: string; notes: NoteItem[]; 
 export interface CountdownItem { id: number; title: string; date: string; yearly: boolean; countUp: boolean; createdDate: string }
 
 export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; description: string; defaultSize: WidgetSize; sizes: WidgetSize[] }> = {
-  calendar: { label: "日历", icon: "calendar", description: "在桌面上查看日期与月历", defaultSize: "large", sizes: ["small", "medium", "large"] },
+  calendar: { label: "日历", icon: "calendar", description: "查看日期、月历与近期日程", defaultSize: "large", sizes: ["small", "medium", "large"] },
   todo: { label: "待办", icon: "check", description: "记录要做的事，完成后随手勾选", defaultSize: "medium", sizes: ["small", "medium", "large"] },
   clock: { label: "时钟", icon: "clock", description: "查看时间，管理闹钟、秒表和计时器", defaultSize: "small", sizes: ["small", "medium", "large"] },
   note: { label: "便签", icon: "note", description: "随手写下想法，自动保存在本机", defaultSize: "medium", sizes: ["small", "medium", "large"] },
@@ -84,7 +87,7 @@ export const defaultSnapshot: AppSnapshot = {
     widgetTransparency: 12,
     widgetCornerRadius: 19,
     weekStartsMonday: true,
-    calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false },
+    calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false, style: "month", events: [] },
     clock: { hour12: false, showSeconds: false, cities: [] },
     clockTools: structuredClone(defaultClockTools),
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },

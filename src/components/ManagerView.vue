@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from "vue";
 const WidgetPreferences = defineAsyncComponent(() => import("./WidgetPreferences.vue"));
+const CalendarSchedulePreferences = defineAsyncComponent(() => import("./CalendarSchedulePreferences.vue"));
 const CalendarPreferences = defineAsyncComponent(() => import("./CalendarPreferences.vue"));
 import AppIcon from "./AppIcon.vue";
 import WidgetThemePreview from "./WidgetThemePreview.vue";
@@ -287,6 +288,7 @@ onUnmounted(() => {
             <WidgetPreferences v-if="['clock', 'note', 'countdown'].includes(settingKind)" :key="settingKind" :kind="settingKind" />
 
             <template v-if="settingKind === 'calendar'">
+              <CalendarSchedulePreferences />
               <h2 class="section-title">日历</h2>
               <div class="settings-group">
                 <div class="settings-card">

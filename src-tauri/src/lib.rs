@@ -59,8 +59,9 @@ const SNAPSHOT_UPDATED_EVENT: &str = "vela://snapshot-updated";
 const CONTEXT_MENU_WIDTH: f64 = 188.0;
 // Size picker row (31px) plus its divider (7px) on top of the base items.
 const CONTEXT_MENU_HEIGHT: f64 = 148.0;
-// The to-do menu adds a "新建待办" item (31px) and a divider (7px).
-const TODO_CONTEXT_MENU_HEIGHT: f64 = 186.0;
+// Extra menu sections use the same 31px item and 7px divider as the frontend.
+const CONTEXT_MENU_ITEM_HEIGHT: f64 = 31.0;
+const CONTEXT_MENU_DIVIDER_HEIGHT: f64 = 7.0;
 const WIDGET_SIZES: [&str; 3] = ["small", "medium", "large"];
 const CONTEXT_MENU_CORNER_RADIUS: u8 = 11;
 
@@ -613,15 +614,19 @@ async fn show_context_menu(
         .ok_or_else(|| "组件窗口尚未准备好。".to_string())?;
     let scale = widget.scale_factor().map_err(|error| error.to_string())?;
     let widget_position = widget.outer_position().map_err(|error| error.to_string())?;
-    let menu_height = if kind == "clock" {
-        CONTEXT_MENU_HEIGHT + 132.0
-    } else if kind == "note" {
-        CONTEXT_MENU_HEIGHT + 108.0
-    } else if kind == "todo" {
-        TODO_CONTEXT_MENU_HEIGHT
-    } else {
-        CONTEXT_MENU_HEIGHT
+    let extra_items = match kind.as_str() {
+        "clock" => 4,
+        "calendar" | "note" => 3,
+        "todo" => 1,
+        _ => 0,
     };
+    let menu_height = CONTEXT_MENU_HEIGHT
+        + extra_items as f64 * CONTEXT_MENU_ITEM_HEIGHT
+        + if extra_items > 0 {
+            CONTEXT_MENU_DIVIDER_HEIGHT
+        } else {
+            0.0
+        };
     let popup_width = (CONTEXT_MENU_WIDTH * scale).round() as u32;
     let popup_height = (menu_height * scale).round() as u32;
     let mut popup_x = widget_position.x + (x * scale).round() as i32;
@@ -1191,6 +1196,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             holidays::set_calendar_settings,
+            holidays::save_calendar_event,
+            holidays::delete_calendar_event,
             holidays::check_holiday_updates,
             extras::set_clock_settings,
             clock_tools::clock_action,

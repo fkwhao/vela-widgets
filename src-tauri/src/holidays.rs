@@ -18,6 +18,8 @@ pub struct CalendarSettings {
     pub show_holidays: bool,
     pub show_workdays: bool,
     pub auto_update: bool,
+    pub style: String,
+    pub events: Vec<CalendarEvent>,
 }
 impl Default for CalendarSettings {
     fn default() -> Self {
@@ -25,8 +27,101 @@ impl Default for CalendarSettings {
             show_holidays: true,
             show_workdays: true,
             auto_update: false,
+            style: "month".into(),
+            events: Vec::new(),
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarEvent {
+    pub id: i64,
+    pub title: String,
+    pub date: String,
+    pub end_date: String,
+    pub all_day: bool,
+    pub start_time: String,
+    pub end_time: String,
+    pub location: String,
+    pub color: String,
+}
+
+fn validate_event(event: &CalendarEvent) -> Result<(), String> {
+    let time_valid = |v: &str| {
+        v.len() == 5
+            && v.as_bytes()[2] == b':'
+            && v[..2].parse::<u8>().is_ok_and(|h| h < 24)
+            && v[3..].parse::<u8>().is_ok_and(|m| m < 60)
+    };
+    if event.title.trim().is_empty()
+        || event.title.chars().count() > 80
+        || event.location.chars().count() > 120
+    {
+        return Err("日程名称请填写 1–80 个字，地点最多 120 个字。".into());
+    }
+    if valid_date(&event.date).is_none()
+        || valid_date(&event.end_date).is_none()
+        || event.end_date < event.date
+        || (!event.all_day
+            && (!event.start_time.is_ascii()
+                || !event.end_time.is_ascii()
+                || !time_valid(&event.start_time)
+                || !time_valid(&event.end_time)
+                || (event.date == event.end_date && event.end_time <= event.start_time)))
+    {
+        return Err("请选择有效日期，结束时间须晚于开始时间。".into());
+    }
+    if event.color.len() != 7
+        || !event.color.starts_with('#')
+        || !event.color[1..].bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Err("日程颜色无效。".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_calendar_event(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    mut event: CalendarEvent,
+) -> Result<AppSnapshot, String> {
+    event.title = event.title.trim().to_string();
+    event.location = event.location.trim().to_string();
+    validate_event(&event)?;
+    update_settings(&state, |s| {
+        if event.id == 0 {
+            if s.calendar.events.len() >= 5000 {
+                return Err("最多保存 5000 条日程。".into());
+            }
+            event.id = s.calendar.events.iter().map(|e| e.id).max().unwrap_or(0) + 1;
+            s.calendar.events.push(event);
+        } else {
+            let old = s
+                .calendar
+                .events
+                .iter_mut()
+                .find(|e| e.id == event.id)
+                .ok_or("这条日程已不存在。")?;
+            *old = event;
+        }
+        Ok(())
+    })?;
+    publish_snapshot(&app, &state)
+}
+
+#[tauri::command]
+pub fn delete_calendar_event(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: i64,
+) -> Result<AppSnapshot, String> {
+    update_settings(&state, |s| {
+        s.calendar.events.retain(|e| e.id != id);
+        Ok(())
+    })?;
+    publish_snapshot(&app, &state)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -324,7 +419,13 @@ pub fn set_calendar_settings(
 ) -> Result<AppSnapshot, String> {
     let enabled = calendar.auto_update;
     update_settings(&state, |s| {
-        s.calendar = calendar;
+        if !["month", "agenda", "list"].contains(&calendar.style.as_str()) {
+            return Err("日历样式无效。".into());
+        }
+        s.calendar.show_holidays = calendar.show_holidays;
+        s.calendar.show_workdays = calendar.show_workdays;
+        s.calendar.auto_update = calendar.auto_update;
+        s.calendar.style = calendar.style;
         Ok(())
     })?;
     let snapshot = publish_snapshot(&app, &state)?;
@@ -351,6 +452,40 @@ pub fn start_update_worker(app: AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn calendar_events_validate_dates_spans_and_migrate_old_settings() {
+        let old: CalendarSettings =
+            serde_json::from_str(r#"{"showHolidays":false,"autoUpdate":false}"#).unwrap();
+        assert_eq!(old.style, "month");
+        assert!(old.events.is_empty());
+        assert!(!old.show_holidays);
+        let mut event = CalendarEvent {
+            id: 1,
+            title: "会议".into(),
+            date: "2026-10-03".into(),
+            end_date: "2026-10-03".into(),
+            all_day: false,
+            start_time: "23:00".into(),
+            end_time: "01:00".into(),
+            location: "".into(),
+            color: "#3b67b8".into(),
+        };
+        assert!(validate_event(&event).is_err());
+        event.end_date = "2026-10-04".into();
+        validate_event(&event).unwrap();
+        let settings = CalendarSettings {
+            events: vec![event.clone()],
+            ..Default::default()
+        };
+        let reloaded: CalendarSettings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(reloaded.events[0].title, event.title);
+        event.date = "2026-02-30".into();
+        assert!(validate_event(&event).is_err());
+        event.date = "2026-10-03".into();
+        event.start_time = "中文a".into();
+        assert!(validate_event(&event).is_err());
+    }
     #[test]
     #[ignore = "requires access to the published public holiday source"]
     fn published_source_is_readable_by_native_client() {

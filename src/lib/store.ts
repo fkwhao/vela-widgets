@@ -42,6 +42,8 @@ export async function setWeekStartsMonday(monday: boolean): Promise<void> {
 }
 
 export async function setCalendarSettings(calendar: import("../types").CalendarSettings): Promise<void> { applySnapshot(await backend.setCalendarSettings(calendar)); }
+export async function saveCalendarEvent(event: import("../types").CalendarEvent): Promise<void> { applySnapshot(await backend.saveCalendarEvent(event)); }
+export async function deleteCalendarEvent(id: number): Promise<void> { applySnapshot(await backend.deleteCalendarEvent(id)); }
 export async function checkHolidayUpdates(): Promise<void> { applySnapshot(await backend.checkHolidayUpdates()); }
 
 export async function setTheme(theme: ThemeMode): Promise<void> {

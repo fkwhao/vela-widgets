@@ -2,6 +2,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { applyClockAction, tickClockTools } from "./clockTools";
 import { normalizeNotes, nextNoteId } from "./notes";
+import { validateCalendarEvent } from "./calendarEvents";
 import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolidayCache } from "./holidays";
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../types";
 
@@ -215,7 +216,21 @@ export async function saveNote(id: number, text: string): Promise<AppSnapshot> {
 
 export async function setCalendarSettings(calendar: import("../types").CalendarSettings): Promise<AppSnapshot> {
   if (isNativeApp()) return invoke("set_calendar_settings", { calendar });
-  return updatePreview(s => { s.settings.calendar = calendar; });
+  return updatePreview(s => { s.settings.calendar = { ...calendar, events: s.settings.calendar.events }; });
+}
+
+export async function saveCalendarEvent(event: import("../types").CalendarEvent): Promise<AppSnapshot> {
+  validateCalendarEvent(event);
+  if (isNativeApp()) return invoke("save_calendar_event", { event });
+  return updatePreview(s => {
+    const events = s.settings.calendar.events;
+    if (event.id === 0) { if (events.length >= 5000) throw new Error("最多保存 5000 条日程。"); events.push({ ...event, title: event.title.trim(), id: Math.max(0, ...events.map(e => e.id)) + 1 }); }
+    else { const index = events.findIndex(e => e.id === event.id); if (index < 0) throw new Error("这条日程已不存在。"); events[index] = { ...event, title: event.title.trim() }; }
+  });
+}
+export async function deleteCalendarEvent(id: number): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("delete_calendar_event", { id });
+  return updatePreview(s => { s.settings.calendar.events = s.settings.calendar.events.filter(e => e.id !== id); });
 }
 
 let previewHolidayCheck: Promise<AppSnapshot> | undefined;

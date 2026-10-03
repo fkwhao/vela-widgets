@@ -39,6 +39,11 @@ export function normalizeHolidayCache(value: HolidayCache | undefined, bundled: 
 export function visibleHoliday(day: HolidayDay | undefined, settings: CalendarSettings): HolidayDay | undefined {
   return day && (day.type === "holiday" ? settings.showHolidays : settings.showWorkdays) ? day : undefined;
 }
+// Official adjustments take priority over the usual Saturday/Sunday rest days.
+export function isCalendarRestDay(date: Date, day?: HolidayDay): boolean {
+  if (day) return day.type === "holiday";
+  return date.getDay() === 0 || date.getDay() === 6;
+}
 export function holidayLabel(day: HolidayDay): string { return `${day.name} · ${day.type === "holiday" ? "休息" : "调休上班"}`; }
 export function holidayUpdateDue(lastAttemptAt: number | null, now = Date.now()): boolean {
   return lastAttemptAt === null || now < lastAttemptAt || now - lastAttemptAt >= holidayCheckInterval;

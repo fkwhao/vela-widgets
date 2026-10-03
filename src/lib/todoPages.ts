@@ -1,8 +1,8 @@
 import type { TodoItem, WidgetSize } from "../types";
-export function paginateTodos(items: TodoItem[], size: WidgetSize, editingId: number | null = null): TodoItem[][] {
+export function paginateTodos(items: TodoItem[], size: WidgetSize, editingId: number | null = null, reservedHeight = 0): TodoItem[][] {
   if (!items.length) return [[]];
   // Compact rows have fixed heights; large rows budget for dates and the inline editor.
-  const budget = size === "small" ? 72 : size === "medium" ? 114 : 245;
+  const budget = Math.max(24, (size === "small" ? 72 : size === "medium" ? 114 : 245) - reservedHeight);
   const pages: TodoItem[][] = [];
   let page: TodoItem[] = [], height = 0;
   for (const item of items) {
