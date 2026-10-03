@@ -206,6 +206,7 @@ export async function exitVela(): Promise<void> {
 
 export async function setClockSettings(clock: ClockSettings): Promise<AppSnapshot> {
   if (isNativeApp()) return invoke("set_clock_settings", { clock });
+  if (!["default", "classic", "digital", "world"].includes(clock.theme) || clock.cities.length > 4) throw new Error("时钟主题或城市配置无效。");
   return updatePreview((s) => { s.settings.clock = clock; });
 }
 export async function saveNote(id: number, text: string): Promise<AppSnapshot> {

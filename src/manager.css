@@ -398,3 +398,44 @@
 .clock-tools-heading { display: flex; align-items: center; gap: 6px; }
 
 .toggle-switch.on span { background: var(--accent-contrast); }
+
+.clock-theme-settings { gap:18px; }
+.clock-theme-settings-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.clock-theme-preview-sizes { display:flex; gap:2px; padding:3px; border:1px solid var(--win-control-stroke); border-radius:999px; background:var(--win-control); }
+.clock-theme-preview-sizes button { width:32px; height:26px; border:0; border-radius:999px; color:var(--win-text-2); background:transparent; cursor:pointer; }
+.clock-theme-preview-sizes button[aria-pressed="true"] { color:var(--win-text); background:var(--win-card); box-shadow:0 1px 3px #0002; }
+.clock-theme-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.clock-theme-option { display:flex; flex-direction:column; align-items:center; gap:12px; min-width:0; padding:12px 8px 10px; border:1px solid var(--win-control-stroke); border-radius:12px; background:var(--win-control); color:var(--win-text); cursor:pointer; transition:border-color .15s,background .15s; }
+.clock-theme-option:hover { background:var(--win-control-hover); }
+.clock-theme-option[aria-pressed="true"] { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 7%,var(--win-control)); box-shadow:inset 0 0 0 1px var(--accent); }
+.clock-theme-option:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.clock-theme-preview { width:112px; max-width:100%; height:112px; border-radius:19px; overflow:hidden; background:rgb(var(--wg-tint)); box-shadow:0 3px 10px #0002; }
+.clock-theme-preview.preview-medium { width:100%; height:auto; aspect-ratio:364/170; }
+.clock-theme-preview .theme-digital-readout strong { font-size:clamp(28px,39cqw,72px); }
+.clock-theme-preview .theme-classic { padding:7px; }
+.clock-theme-preview .theme-world { padding:6px; }
+.clock-theme-preview .theme-world-grid { gap:5px; }
+.clock-theme-option-label { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; }
+.clock-theme-option-label svg { color:var(--accent); }
+.clock-theme-options.wide-previews { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.clock-theme-preview.preview-medium .theme-clock-dial { max-height:none; }
+.clock-theme-preview.preview-medium .theme-classic { flex-direction:row; gap:8px; }
+.clock-theme-preview.preview-medium .theme-classic-date { font-size:8px; }
+.clock-theme-preview.preview-medium .theme-world-caption { font-size:7px; }
+.clock-theme-preview.preview-medium .theme-world-caption strong { font-size:8px; }
+.clock-theme-preview.preview-medium .theme-world-caption small { font-size:7px; }
+.clock-theme-preview.preview-medium .theme-digital-readout { padding:8px 12%; }
+.clock-theme-preview.preview-medium .theme-digital-readout strong { font-size:clamp(28px,28cqw,76px); }
+.clock-theme-preview.preview-medium .theme-digital-readout small { margin-top:4px; font-size:8px; }
+@media(max-width:850px) { .clock-theme-options { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+.clock-theme-preview.preview-medium .theme-world-grid.row .theme-world-city { gap:5px; }
+.clock-theme-preview.preview-medium .theme-world-caption { font-size:9px; }
+.clock-theme-preview.preview-medium .theme-world-caption strong { font-size:10px; }
+.clock-theme-preview.preview-medium .theme-world-caption small { font-size:8px; }
+
+.clock-theme-heading { display:flex; align-items:center; gap:8px; }
+
+.clock-theme-preview .theme-classic .theme-classic-dial { width:100%; height:100%; min-height:0; }
+.clock-theme-preview.preview-medium .theme-classic .theme-classic-dial { width:46%; flex:none; }
+.clock-theme-preview .theme-classic .theme-classic-dial .theme-clock-dial { width:100%; height:100%; max-height:100%; }

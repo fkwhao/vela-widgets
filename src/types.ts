@@ -37,7 +37,9 @@ export interface HolidayDay { date: string; name: string; type: "holiday" | "wor
 export interface HolidayYear { year: number; source: string; days: HolidayDay[] }
 export interface HolidayData { schemaVersion: number; revision: number; updatedAt: string; years: HolidayYear[] }
 export interface HolidayCache { data: HolidayData; lastAttemptAt: number | null; lastCheckedAt: number | null; lastUpdatedAt: number | null; lastError: string | null }
-export interface ClockSettings { hour12: boolean; showSeconds: boolean; cities: ClockCity[] }
+export type ClockTheme = "default" | "classic" | "digital" | "world";
+export const clockThemes: { value: ClockTheme; label: string }[] = [{ value: "default", label: "默认主题" }, { value: "digital", label: "数字时钟" }, { value: "classic", label: "经典表盘" }, { value: "world", label: "世界时钟" }];
+export interface ClockSettings { theme: ClockTheme; hour12: boolean; showSeconds: boolean; cities: ClockCity[] }
 export interface NoteItem { id: number; text: string; color: string; createdAt: number; deleteAfterHours: number | null; retentionOverride: boolean }
 export interface NoteSettings { text: string; color: string; notes: NoteItem[]; activeId: number | null; defaultDeleteAfterHours: number | null }
 export interface CountdownItem { id: number; title: string; date: string; yearly: boolean; countUp: boolean; createdDate: string }
@@ -88,7 +90,7 @@ export const defaultSnapshot: AppSnapshot = {
     widgetCornerRadius: 19,
     weekStartsMonday: true,
     calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false, style: "month", events: [] },
-    clock: { hour12: false, showSeconds: false, cities: [] },
+    clock: { theme: "default", hour12: false, showSeconds: false, cities: [] },
     clockTools: structuredClone(defaultClockTools),
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
     widgets: {

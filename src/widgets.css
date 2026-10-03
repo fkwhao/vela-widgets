@@ -982,7 +982,7 @@ button.note-save-status { cursor: pointer; }
 .clock-immersive .clock-display, .clock-immersive .clock-analog-small { width: 100%; height: 100%; padding: 0; }
 .clock-immersive .analog-clock.square { width: 100%; height: 100%; filter: none; }
 .clock-compact .compact-mode-header { position: absolute; right: 8px; bottom: 8px; z-index: 5; height: 24px; margin: 0; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
-.clock-compact:hover .compact-mode-header, .clock-compact .compact-mode-header:focus-within, .clock-compact .compact-mode-header.menu-open { opacity: 1; pointer-events: auto; }
+.clock-mode-reveal-zone:hover .compact-mode-header, .clock-compact .compact-mode-header:has(:focus-visible), .clock-compact .compact-mode-header.menu-open { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .clock-compact .compact-mode-header { opacity: 1; pointer-events: auto; } }
 @media (prefers-reduced-motion: reduce) { .clock-compact .compact-mode-header { transition: none; } }
 .clock-compact .clock-mode-picker { width: 24px; height: 24px; justify-content: center; padding: 0; color: var(--wg-text-2); background: var(--wg-control); border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -1126,3 +1126,154 @@ button.cal-event-pill { cursor:pointer; }
 .calendar-widget :is(.cal-small,.cal-today-panel).rest-day :is(.cal-eyebrow,.cal-hero-day) { color:var(--wg-accent-text); }
 .calendar-widget :is(.cal-small,.cal-today-panel):not(.rest-day) .cal-holiday-caption,
 .calendar-widget:has(.date-cell.selected:not(.rest-day)) .calendar-footer-date .cal-holiday-caption { color:var(--wg-text-2); }
+
+/* Clock themes: neutral faces with a warm second hand and live city time. */
+.clock-theme-face { position:relative; display:flex; flex:1; min-height:0; width:100%; height:100%; align-items:center; justify-content:center; overflow:hidden; border-radius:inherit; }
+.clock-theme-face.theme-classic { flex-direction:column; gap:10px; padding:12px; background:#101012; }
+.clock-theme-face.theme-digital { background:#fff; color:#111; }
+.clock-theme-face.theme-world { padding:10px; background:rgb(var(--wg-tint)); }
+.theme-clock-dial { --face:#fff; --dial-ink:#151515; --dial-tick:#b5b5b5; display:block; width:100%; height:100%; min-width:0; min-height:0; flex:none; }
+.theme-clock-dial.night-dial { --face:#303033; --dial-ink:#f7f7f8; --dial-tick:#96969c; }
+.theme-dial-face { fill:var(--face); }
+.theme-dial-ticks line { stroke:var(--dial-tick); stroke-width:1.3; stroke-linecap:round; }
+.theme-dial-ticks .major { stroke:#777; stroke-width:1.5; }
+.theme-dial-number { fill:var(--dial-ink); font-family:"Segoe UI Variable Display","Segoe UI",sans-serif; font-size:22px; font-weight:600; text-anchor:middle; dominant-baseline:central; }
+.city-dial .theme-dial-number { font-size:19px; font-weight:500; }
+.theme-dial-city { fill:var(--dial-ink); opacity:.6; text-anchor:middle; font-size:14px; }
+.theme-dial-hour,.theme-dial-minute { stroke:var(--dial-ink); stroke-linecap:round; }
+.theme-dial-hour { stroke-width:7; }
+.theme-dial-minute { stroke-width:5.5; }
+.theme-dial-hub { fill:var(--dial-ink); }
+.theme-dial-second line { stroke:#ed9b21; stroke-width:1.5; }
+.theme-dial-second circle { fill:#ed9b21; }
+.theme-digital-face { position:absolute; inset:0; width:100%; height:100%; }
+.theme-digital-face line { stroke:#c8c8c8; stroke-width:1.6; stroke-linecap:round; }
+.theme-digital-face line.passed { stroke:#333; }
+.theme-digital-readout { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; padding:15%; }
+.theme-digital-readout strong { font-family:"Bahnschrift Condensed","Arial Narrow","Segoe UI",sans-serif; font-stretch:condensed; font-size:clamp(32px,14vw,65px); font-weight:700; letter-spacing:-.055em; line-height:1; white-space:nowrap; }
+.theme-digital-readout>span { margin-top:8px; font-size:13px; font-variant-numeric:tabular-nums; color:#666; }
+.theme-digital-readout small { margin-top:12px; color:#666; font-size:11px; }
+.theme-classic-date { flex:none; color:#a7a7ae; font-size:11px; }
+.theme-classic.theme-size-small .theme-clock-dial { width:100%; height:100%; }
+.theme-classic:not(.theme-size-small) .theme-clock-dial { width:140px; height:140px; }
+.theme-world-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; height:100%; min-height:0; }
+.theme-world-grid.row { grid-template-columns:repeat(4,minmax(0,1fr)); align-items:center; gap:8px; }
+.theme-world-city { display:flex; min-width:0; min-height:0; flex-direction:column; align-items:center; gap:5px; }
+.theme-world-city .theme-clock-dial { flex:1; min-height:0; }
+.theme-world-grid.row .theme-clock-dial { flex:none; aspect-ratio:1; height:auto; }
+.theme-world-caption { display:flex; flex:none; flex-direction:column; align-items:center; width:100%; gap:1px; color:var(--wg-text-3); font-size:10px; line-height:1.2; }
+.theme-world-caption strong { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--wg-text); font-weight:550; font-size:11px; }
+.theme-world-caption small { font-size:9px; }
+.theme-world.theme-size-large { padding:20px; }
+.theme-default-face { display:flex; align-items:center; justify-content:center; gap:12px; width:100%; height:100%; }
+.theme-default-face .analog-clock { width:100%; height:100%; }
+.theme-default-cities { min-width:0; display:flex; flex-direction:column; gap:8px; font-size:10px; color:var(--wg-text-2); }
+.theme-default-face:has(.theme-default-cities) .analog-clock { width:42%; height:auto; }
+.clock-themed .clock-mode-header { position:absolute; z-index:5; right:8px; bottom:7px; height:26px; margin:0; opacity:0; pointer-events:none; transition:opacity .15s; }
+.clock-themed .clock-mode-reveal-zone:hover .clock-mode-header,.clock-themed .clock-mode-header:has(:focus-visible),.clock-themed .clock-mode-header.menu-open { opacity:1; pointer-events:auto; }
+.clock-themed .clock-mode-tabs { border:1px solid var(--wg-stroke); border-radius:999px; padding:2px; background:rgb(var(--wg-tint)); }
+.clock-themed .clock-mode-tabs button { border-radius:50%; }
+.clock-themed .clock-mode-header>.extra-caption { display:none; }
+.clock-themed .clock-mode-menu { top:auto; bottom:40px; }
+@media (hover:none) { .clock-themed .clock-mode-header { opacity:1; pointer-events:auto; } }
+@media (prefers-reduced-motion:reduce) { .clock-themed .clock-mode-header { transition:none; } }
+
+.clock-theme-face { container-type:inline-size; }
+.theme-digital-readout { padding:12px 12%; }
+.theme-digital-readout strong { font-size:clamp(28px,39cqw,120px); }
+.theme-digital-readout .theme-digital-meridiem { margin-top:5px; font-size:9px; }
+.theme-digital-face line.passed { transition:stroke .2s ease; }
+.theme-classic.theme-size-medium { flex-direction:row; gap:20px; }
+.theme-classic.theme-size-medium .theme-clock-dial { width:140px; height:140px; }
+.theme-classic.theme-size-medium .theme-classic-date { max-width:100px; line-height:1.6; }
+.theme-digital.theme-size-medium .theme-digital-readout strong { font-size:clamp(28px,28cqw,76px); }
+.theme-world-grid.row .theme-dial-number { font-size:19px; }
+@media(prefers-reduced-motion:reduce) { .theme-digital-face line.passed { transition:none; } }
+
+.theme-world-empty { color:var(--wg-text-3); padding:12px; font-size:11px; text-align:center; }
+.clock-window.size-medium:not(.clock-themed) .clock-cities:has(.clock-city:nth-child(4)) { gap:4px; }
+
+/* Immersive clock controls share an opaque, theme-independent capsule. */
+.clock-window.clock-themed .clock-mode-header { position:absolute; right:8px; bottom:7px; z-index:5; margin:0; opacity:0; pointer-events:none; }
+.clock-window.clock-themed .clock-mode-reveal-zone:hover .clock-mode-header,
+.clock-window.clock-themed .clock-mode-header:has(:focus-visible),
+.clock-window.clock-themed .clock-mode-header.menu-open { opacity:1; pointer-events:auto; }
+.clock-window .clock-mode-picker { color:var(--wg-text); background:rgb(var(--wg-tint)); border:1px solid var(--wg-stroke); border-radius:50%; box-shadow:0 2px 8px #0003,0 0 0 1px #fff2; }
+.clock-window .clock-mode-tabs { box-shadow:0 2px 8px #0003,0 0 0 1px #fff2; }
+.clock-window .clock-mode-header>.extra-caption { display:none; }
+.clock-window .clock-tools-panel:not(.clock-management) { padding:12px 16px 32px; margin:0; }
+.clock-window.size-large .clock-display>.analog-clock { width:220px; height:220px; }
+.clock-window.size-large .clock-cities.large { padding:0 20px 30px; }
+.clock-window :is(.clock-cities.large,.clock-laps,.clock-alarm-list,.clock-tool-editor) { scrollbar-width:thin; scrollbar-color:var(--wg-text-4) transparent; overscroll-behavior:contain; }
+.clock-window :is(.clock-cities.large,.clock-laps,.clock-alarm-list,.clock-tool-editor)::-webkit-scrollbar { width:3px; }
+.clock-window :is(.clock-cities.large,.clock-laps,.clock-alarm-list,.clock-tool-editor)::-webkit-scrollbar-track { background:transparent; }
+.clock-window :is(.clock-cities.large,.clock-laps,.clock-alarm-list,.clock-tool-editor)::-webkit-scrollbar-thumb { background:var(--wg-text-4); border-radius:999px; }
+.theme-default-face .analog-clock { max-height:100%; }
+.theme-default-face:has(.theme-default-cities) .analog-clock { width:46%; height:100%; }
+.theme-default-cities { gap:10px; font-size:11px; }
+.theme-classic-dial { display:flex; justify-content:center; width:100%; flex:1; min-height:0; max-height:280px; }
+.theme-classic .theme-classic-dial .theme-clock-dial { width:100%; height:100%; max-height:100%; }
+.theme-classic.theme-size-medium .theme-classic-dial { flex:none; width:46%; height:100%; }
+.theme-classic.theme-size-large { padding:28px 20px 44px; gap:18px; }
+.clock-theme-face.theme-digital { --digital-face:#fafafa; --digital-ink:#151515; --digital-muted:#777; background:var(--digital-face); color:var(--digital-ink); }
+:root[data-theme="dark"] .clock-theme-face.theme-digital { --digital-face:#151517; --digital-ink:#f5f5f7; --digital-muted:#929298; }
+.theme-digital-face rect { fill:var(--digital-face); }
+.theme-digital-face line { stroke:var(--digital-muted); opacity:.45; }
+.theme-digital-face line.passed { stroke:var(--digital-ink); opacity:.85; }
+.theme-digital-readout>span,.theme-digital-readout small { color:var(--digital-muted); }
+/* Thin numerals and two deliberate round actions replace persistent toolbars. */
+.clock-window .clock-tools-panel:is(.tool-mode-stopwatch,.tool-mode-timer) { display:flex; flex-direction:column; justify-content:center; gap:8px; }
+.clock-window .clock-tools-panel .simple-counter { display:flex; flex:1; height:auto; min-height:40px; align-items:center; justify-content:center; }
+.clock-window .simple-counter strong { font-family:"Segoe UI Variable Display","Segoe UI",sans-serif; font-size:52px; font-weight:200; letter-spacing:-.035em; line-height:1.1; font-variant-numeric:tabular-nums; }
+.clock-window .simple-counter.long-duration strong { font-size:40px; }
+.clock-round-actions { display:flex; flex:none; align-items:center; justify-content:space-between; width:100%; gap:12px; }
+.clock-round-button { display:grid; place-items:center; flex:none; width:56px; height:56px; padding:0; border:0; border-radius:50%; font:inherit; font-size:12px; cursor:pointer; transition:filter .15s,transform .15s; }
+.clock-round-button.secondary { background:var(--wg-fill-hover); color:var(--wg-text-2); }
+.clock-round-button.start { background:color-mix(in srgb,#28b45c 18%,rgb(var(--wg-tint))); color:#168e45; }
+:root[data-theme="dark"] .clock-round-button.start { color:#45d471; }
+.clock-round-button.pause { background:color-mix(in srgb,#ed9340 18%,rgb(var(--wg-tint))); color:var(--wg-danger); }
+.clock-round-button:hover:not(:disabled) { filter:brightness(1.12); }
+.clock-round-button:active:not(:disabled) { transform:scale(.95); }
+.clock-round-button:disabled { opacity:.4; cursor:default; }
+.clock-window .clock-inline-timer { flex:1; min-height:0; display:flex; justify-content:center; align-items:center; }
+.clock-inline-timer .vela-time-input { width:100%; justify-content:center; gap:4px; }
+.clock-inline-timer .vela-time-input .vela-time-segment { font-size:44px; font-weight:200; min-width:1.4em; }
+.clock-inline-timer .vela-time-input .vela-time-colon { font-size:36px; }
+.clock-window.size-large .clock-round-actions { padding:0 10px; }
+.clock-window.size-large .clock-round-button { width:64px; height:64px; font-size:14px; }
+.clock-window.size-large .clock-tools-panel .clock-laps { flex:1; min-height:0; margin-top:8px; }
+.clock-window.size-medium .clock-tools-panel .simple-counter { flex:1; }
+.clock-window.size-medium .simple-counter strong { font-size:42px; }
+.clock-window.size-medium .clock-round-actions { max-width:260px; align-self:center; }
+.clock-window.size-medium .clock-round-button { width:36px; height:36px; font-size:10px; }
+.clock-window.size-medium .clock-laps { flex:0 1 25px; overflow:auto; margin:0; padding:0; }
+.clock-window.size-medium .clock-inline-timer .vela-time-segment { font-size:34px; }
+.clock-window.size-small .clock-tools-panel { padding:8px 12px 30px; gap:5px; }
+.clock-window.size-small .simple-counter strong { font-size:29px; }
+.clock-window.size-small .simple-counter.long-duration strong { font-size:23px; }
+.clock-window.size-small .clock-round-button { width:34px; height:34px; font-size:9px; }
+.clock-window.size-small .clock-laps { flex:0 1 22px; margin:0; padding:0; }
+.clock-window.size-small .clock-inline-timer .vela-time-input { gap:0; }
+.clock-window.size-small .clock-inline-timer .vela-time-segment { font-size:26px; min-width:1.3em; padding:0 1px; }
+.clock-window.size-small .clock-inline-timer .vela-time-colon { font-size:22px; }
+@media (hover:none) { .clock-window.clock-themed .clock-mode-header { opacity:1; pointer-events:auto; } }
+@media (prefers-reduced-motion:reduce) { .clock-round-button { transition:none; } }
+
+/* Stopwatch content shares one viewport rather than a compressed lap scroller. */
+.clock-tool-drag-handle { position:absolute; top:0; left:0; right:0; height:10px; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch { overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--wg-text-4) transparent; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch.has-laps { justify-content:flex-start; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch.has-laps .simple-counter { flex:none; min-height:110px; }
+.clock-window.size-medium .clock-tools-panel.tool-mode-stopwatch.has-laps .simple-counter { min-height:64px; }
+.clock-window.size-small .clock-tools-panel.tool-mode-stopwatch.has-laps .simple-counter { min-height:54px; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch .clock-laps { flex:none; min-height:0; max-height:none; overflow:visible; margin-top:8px; padding-top:6px; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch .clock-laps>div { padding:8px 0; font-size:12px; }
+.clock-window.size-small .clock-tools-panel.tool-mode-stopwatch .clock-laps>div { padding:7px 0; font-size:10px; gap:3px; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch::-webkit-scrollbar { width:3px; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch::-webkit-scrollbar-track { background:transparent; }
+.clock-window .clock-tools-panel.tool-mode-stopwatch::-webkit-scrollbar-thumb { background:var(--wg-text-4); border-radius:999px; }
+
+/* Reveal modes only within the reserved lower corner, away from start buttons. */
+.clock-mode-reveal-zone { position:absolute; right:8px; bottom:4px; z-index:5; height:24px; display:flex; align-items:center; }
+.clock-mode-reveal-zone::before { content:''; position:absolute; inset:0 -4px -4px -6px; }
+.clock-window.clock-themed .clock-mode-reveal-zone .clock-mode-header { position:relative; right:auto; bottom:auto; }

@@ -3,9 +3,20 @@ use super::*;
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClockSettings {
+    #[serde(default)]
+    pub theme: ClockTheme,
     pub hour12: bool,
     pub show_seconds: bool,
     pub cities: Vec<ClockCity>,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ClockTheme {
+    #[default]
+    Default,
+    Classic,
+    Digital,
+    World,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -243,14 +254,14 @@ pub fn set_clock_settings(
         "Australia/Sydney",
         "Pacific/Auckland",
     ];
-    if clock.cities.len() > 3
+    if clock.cities.len() > 4
         || clock.cities.iter().any(|c| {
             c.name.trim().is_empty()
                 || c.name.chars().count() > 40
                 || !zones.contains(&c.time_zone.as_str())
         })
     {
-        return Err("最多选择三个支持的城市。".into());
+        return Err("最多选择四个支持的城市。".into());
     }
     update_settings(state.inner(), |s| {
         s.clock = clock;
@@ -669,6 +680,28 @@ mod tests {
         assert!(!valid_date("0000-01-01"));
         assert!(!valid_date("日期无效"));
     }
+    #[test]
+    fn clock_themes_migrate_and_round_trip_with_custom_cities() {
+        let legacy: ClockSettings = serde_json::from_value(serde_json::json!({
+            "hour12": false, "showSeconds": true,
+            "cities": [{"name":"东京", "timeZone":"Asia/Tokyo"}]
+        }))
+        .unwrap();
+        assert!(matches!(legacy.theme, ClockTheme::Default));
+        assert_eq!(legacy.cities[0].time_zone, "Asia/Tokyo");
+        for theme in ["default", "digital", "classic", "world"] {
+            let mut value = serde_json::to_value(&legacy).unwrap();
+            value["theme"] = serde_json::json!(theme);
+            let clock: ClockSettings = serde_json::from_value(value).unwrap();
+            let stored = serde_json::to_value(clock).unwrap();
+            assert_eq!(stored["theme"], theme);
+            assert_eq!(stored["cities"][0]["name"], "东京");
+        }
+        let mut invalid = serde_json::to_value(&legacy).unwrap();
+        invalid["theme"] = serde_json::json!("unknown");
+        assert!(serde_json::from_value::<ClockSettings>(invalid).is_err());
+    }
+
     #[test]
     fn old_settings_keep_existing_widgets_and_gain_disabled_defaults() {
         let db = Connection::open_in_memory().unwrap();

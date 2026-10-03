@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref } from "vue";
+import ClockThemePreferences from "./ClockThemePreferences.vue";
 import ClockToolsPanel from "./ClockToolsPanel.vue";
 import { clockModes } from "../types";
 import AppIcon from "./AppIcon.vue";
@@ -35,7 +36,7 @@ const selectedNoteColor = computed(() => colors.find(color => color.value === sn
 async function run(action: () => Promise<void>) { error.value = ""; busy.value = true; try { await action(); } catch(e) { error.value = typeof e === "string" ? e : "没有保存成功，请重试。"; } finally { busy.value = false; } }
 function toggleCity(city: typeof cities[number]) {
   const selected = clock.value.cities.some((c) => c.timeZone === city.timeZone);
-  if (!selected && clock.value.cities.length >= 3) { error.value = "最多选择三个城市。"; return; }
+  if (!selected && clock.value.cities.length >= 4) { error.value = "最多选择四个城市。"; return; }
   void run(() => setClockSettings({ ...clock.value, cities: selected ? clock.value.cities.filter((c) => c.timeZone !== city.timeZone) : [...clock.value.cities, city] }));
 }
 function edit(item?: CountdownItem) { editor.value = true; editingId.value = item?.id ?? null; title.value = item?.title ?? ""; date.value = item?.date ?? localDateKey(new Date()); yearly.value = item?.yearly ?? false; countUp.value = item?.countUp ?? false; createdDate.value = item?.createdDate ?? localDateKey(new Date()); }
@@ -48,10 +49,11 @@ const deleting = ref<number | null>(null);
 <template>
   <div v-if="error" class="info-bar" role="alert">{{ error }}</div>
   <template v-if="kind === 'clock'">
+    <ClockThemePreferences />
     <h2 class="section-title">时间显示</h2><div class="settings-group">
       <div class="settings-card"><AppIcon class="card-icon" name="clock" :size="18" /><div class="card-text"><strong>12 小时制</strong><span>关闭时使用 24 小时制</span></div><button class="toggle-switch" :class="{ on: clock.hour12 }" role="switch" :aria-checked="clock.hour12" aria-label="12 小时制" :disabled="busy" @click="run(() => setClockSettings({ ...clock, hour12: !clock.hour12 }))"><span></span></button></div>
       <div class="settings-card"><AppIcon class="card-icon" name="clock" :size="18" /><div class="card-text"><strong>显示秒</strong><span>数字时间显示秒数；指针表盘始终显示秒针</span></div><button class="toggle-switch" :class="{ on: clock.showSeconds }" role="switch" :aria-checked="clock.showSeconds" aria-label="显示秒" :disabled="busy" @click="run(() => setClockSettings({ ...clock, showSeconds: !clock.showSeconds }))"><span></span></button></div>
-      <div class="settings-card stacked"><div class="card-text"><strong>世界时钟</strong><span>最多三个城市，时差自动随夏令时变化</span></div><div class="city-options"><button v-for="city in cities" :key="city.timeZone" class="win-button" :class="{ selected: clock.cities.some(c => c.timeZone === city.timeZone) }" :aria-pressed="clock.cities.some(c => c.timeZone === city.timeZone)" :disabled="busy" @click="toggleCity(city)">{{ city.name }}</button></div></div>
+      <div class="settings-card stacked"><div class="card-text"><strong>世界时钟</strong><span>最多四个城市，时差自动随夏令时变化</span></div><div class="city-options"><button v-for="city in cities" :key="city.timeZone" class="win-button" :class="{ selected: clock.cities.some(c => c.timeZone === city.timeZone) }" :aria-pressed="clock.cities.some(c => c.timeZone === city.timeZone)" :disabled="busy" @click="toggleCity(city)">{{ city.name }}</button></div></div>
     </div>
     <h2 class="section-title clock-tools-heading">时钟工具<button type="button" class="holiday-info-button" aria-label="时钟工具说明" data-tooltip="切换设置页工具不会改变桌面时钟模式，也不会中断计时。&#10;&#10;Vela 运行时到时弹窗并播放系统提示音；隐藏组件仍会提醒。退出期间到期的提醒在下次启动时补显。"><AppIcon name="info" :size="16" /></button></h2>
     <div class="settings-card stacked clock-management">

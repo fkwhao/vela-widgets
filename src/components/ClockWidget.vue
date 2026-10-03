@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import ClockThemeFace from "./ClockThemeFace.vue";
 import AnalogClock from "./AnalogClock.vue";
 import ClockToolsPanel from "./ClockToolsPanel.vue";
 import { clockModes, type ClockMode } from "../types";
@@ -9,7 +10,6 @@ import { snapshot, clockAction } from "../lib/store";
 import { useWidgetClock } from "../lib/useWidgetClock";
 const tools = computed(() => snapshot.value.settings.clockTools);
 const compactClock = computed(() => snapshot.value.settings.widgets.clock.size === "small");
-const immersive = computed(() => tools.value.mode === "clock" && snapshot.value.settings.widgets.clock.size === "small");
 const modeButton = ref<HTMLButtonElement | null>(null);
 const modeMenu = ref(false); const modeError = ref("");
 async function closeModeMenu() { modeMenu.value = false; await nextTick(); modeButton.value?.focus(); }
@@ -40,28 +40,25 @@ const cities = computed(() => settings.value.cities.map((city) => {
 
 </script>
 <template>
-  <WidgetFrame kind="clock" header-only :class="{ 'clock-immersive': immersive, 'clock-compact': compactClock }">
+  <WidgetFrame kind="clock" header-only class="clock-immersive clock-themed" :class="{ 'clock-compact': compactClock }">
     <template #default="{ widget, drag }">
+    <div class="clock-mode-reveal-zone">
     <header class="clock-mode-header" :class="{ 'compact-mode-header': compactClock, 'menu-open': modeMenu }" @keydown.esc.stop="closeModeMenu" :data-tauri-drag-region="compactClock ? undefined : drag"><button ref="modeButton" v-if="widget.size === 'small'" class="clock-mode-picker" aria-label="切换时钟模式" :data-tooltip="`当前：${clockModes.find(m => m.value === tools.mode)?.label} · 切换模式`" aria-haspopup="menu" :aria-expanded="modeMenu" @click="modeMenu=!modeMenu"><AppIcon v-if="compactClock" name="more" :size="15" /><template v-else><AppIcon :name="clockModes.find(m=>m.value===tools.mode)?.icon??'clock'" :size="14" />{{ clockModes.find(m=>m.value===tools.mode)?.label }}<AppIcon name="chevron-down" :size="11" /></template></button><nav v-else class="clock-mode-tabs" aria-label="时钟模式"><button v-for="mode in clockModes" :key="mode.value" class="widget-icon-button" :class="{selected:tools.mode===mode.value}" :aria-label="mode.label" :aria-pressed="tools.mode===mode.value" @click="chooseMode(mode.value)"><AppIcon :name="mode.icon" :size="16" /></button></nav><span v-if="runningHint" class="clock-running-dot" :data-tooltip="runningHint" :aria-label="runningHint"></span><span v-if="widget.size !== 'small'" class="extra-caption">{{ clockModes.find(m=>m.value===tools.mode)?.label }}</span></header>
+    </div>
     <div v-if="modeMenu" class="clock-mode-menu" role="menu" @keydown.esc.stop="closeModeMenu"><button v-for="mode in clockModes" :key="mode.value" role="menuitem" :aria-current="tools.mode === mode.value ? 'true' : undefined" @click="chooseMode(mode.value)"><AppIcon :name="mode.icon" :size="14" /><span>{{ mode.label }}</span><AppIcon v-if="tools.mode === mode.value" name="tick" :size="12" /></button></div>
-    <div v-if="compactClock && !immersive" class="clock-compact-footer" :data-tauri-drag-region="drag"><span>{{ clockModes.find(m => m.value === tools.mode)?.label }}</span></div>
-    <ClockToolsPanel v-if="tools.mode !== 'clock'" :key="tools.mode" :size="widget.size" />
-    <div v-else class="clock-display">
+    <ClockToolsPanel v-if="tools.mode !== 'clock'" :key="tools.mode" :size="widget.size" :drag="drag" />
+    <div v-else class="clock-display" :data-tauri-drag-region="widget.locked ? undefined : ''">
+    <ClockThemeFace v-if="(settings.theme !== 'default' || widget.size === 'medium')" :now="now" :settings="settings" :size="widget.size" :data-tauri-drag-region="drag" />
+    <template v-else>
     <div v-if="widget.size === 'small'" class="clock-analog-small" :data-tauri-drag-region="drag">
       <AnalogClock square :now="now" :label="`本地时间 ${localTime}，${dateLabel}`" />
 
     </div>
-    <div v-else-if="widget.size === 'medium'" class="clock-digital clock-split">
-      <div class="clock-local"><AnalogClock :now="now" :label="`本地时间 ${localTime}`" /><span class="extra-caption">{{ dateLabel }}</span></div>
-      <div class="clock-cities">
-        <div v-for="city in cities" :key="city.timeZone" class="clock-city"><div><span>{{ city.name }}</span><small><AppIcon :name="city.daylight ? 'sun' : 'moon'" :size="11" />{{ city.difference }}</small></div><strong>{{ city.display }}</strong></div>
-        <p v-if="!cities.length" class="extra-empty-caption">在偏好设置中添加城市<br />看看远方的时间</p>
-      </div>
-    </div>
     <template v-else>
-      <AnalogClock :now="now" :label="`本地时间 ${localTime}`" />
-      <span class="clock-large-date extra-caption">{{ localTime }} · {{ dateLabel }}</span>
-      <div class="clock-cities large"><div v-for="city in cities" :key="city.timeZone" class="clock-city"><div><span>{{ city.name }}</span><small><AppIcon :name="city.daylight ? 'sun' : 'moon'" :size="11" />{{ city.difference }}</small></div><strong>{{ city.display }}</strong></div><p v-if="!cities.length" class="extra-empty-caption">此刻，也是新的一刻。</p></div>
+      <AnalogClock :now="now" :label="`本地时间 ${localTime}`" :data-tauri-drag-region="drag" />
+      <span class="clock-large-date extra-caption" :data-tauri-drag-region="drag">{{ localTime }} · {{ dateLabel }}</span>
+      <div class="clock-cities large"><div v-for="city in cities" :key="city.timeZone" class="clock-city" :data-tauri-drag-region="drag"><div><span>{{ city.name }}</span><small><AppIcon :name="city.daylight ? 'sun' : 'moon'" :size="11" />{{ city.difference }}</small></div><strong>{{ city.display }}</strong></div><p v-if="!cities.length" class="extra-empty-caption">此刻，也是新的一刻。</p></div>
+    </template>
     </template>
     </div>
     <p v-if="modeError" class="extra-notice" role="alert">{{ modeError }}</p>
