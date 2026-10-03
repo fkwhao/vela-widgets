@@ -8,11 +8,13 @@ Vela is a Windows desktop-widget app built as one Tauri 2 + Rust + Vue 3 + TypeS
 - Independent calendar, to-do, clock, note, and countdown windows; first launch enables the calendar so the manager always has a desktop entry point.
 - Local SQLite storage for component preferences, notes, countdown events and to-do items, with backward-compatible settings migration.
 - Three fixed size presets for each widget, shared appearance, position locking and native context menus.
+- Calendar: medium/large month navigation, offline 2026 mainland China holiday and adjusted-workday markers, independent visibility controls and optional daily updates. Manual checks are available; validated updates persist in SQLite and failures keep existing data. The public update source becomes available after publishing the holiday files to main; see [holiday data maintenance](data/holidays/README.md).
 - Clock: 12/24-hour display, optional seconds, and up to three offline world-clock cities with automatic daylight-saving offsets.
-- Note: one autosaved note, basic bold/list display, preset and custom accent colors and a save handshake before closing or exiting.
+- Notes: multiple autosaved Markdown notes in one window, titles from the first nonempty line, desktop create/delete with undo, right-click list, per-note colors and 3D vertical switching. Rendering includes tables, tasks, footnotes, code highlighting, KaTeX and Mermaid. Images load only on request; raw HTML displays as text.
+- Per-note retention defaults to never delete; optional durations start at creation time, and expired notes are removed while running or on the next launch. Existing single-note content migrates automatically.
 - Countdown: create/edit/delete events in preferences, annual recurrence and elapsed-day mode. Feb 29 recurrences use Feb 28 in non-leap years.
 - To-do and countdown use manual vertical pagination with shared arrows and page indicators; notes retain a thin scrollbar and enter editing only from the edit button.
-- New widgets are disabled by default; enable them from preferences. All new features work offline.
+- New widgets are disabled by default; enable them from preferences. Widget content works offline; holiday updates connect only when explicitly requested or enabled.
 - Light and dark themes, with a blue accent that can be adjusted in the appearance page.
 - In-browser preview mode with local storage when the app is run outside Tauri.
 

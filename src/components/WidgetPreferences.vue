@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, ref } from "vue";
 import AppIcon from "./AppIcon.vue";
+const NoteRetention = defineAsyncComponent(() => import("./NoteRetention.vue"));
 import { snapshot, setClockSettings, setNoteColor, saveCountdown, deleteCountdown } from "../lib/store";
 import { localDateKey } from "../lib/countdown";
 import type { CountdownItem, WidgetKind } from "../types";
@@ -64,7 +65,7 @@ const deleting = ref<number | null>(null);
               <span class="note-color-dot" :style="{ backgroundColor: color.value }"><AppIcon v-if="snapshot.settings.note.color === color.value" name="tick" :size="15" /></span>
               <span>{{ color.label }}</span>
             </button>
-            <label class="note-color-option note-color-custom" :class="{ selected: isCustomNoteColor, 'is-busy': busy }" title="打开调色盘">
+            <label class="note-color-option note-color-custom" :class="{ selected: isCustomNoteColor, 'is-busy': busy }" data-tooltip="打开调色盘">
               <span class="note-color-dot note-color-rainbow"><AppIcon v-if="isCustomNoteColor" name="tick" :size="15" /></span>
               <span>自定义</span>
               <input type="color" :value="snapshot.settings.note.color" aria-label="自定义便签颜色" :disabled="busy" @change="onCustomNoteColor" />
@@ -77,7 +78,8 @@ const deleting = ref<number | null>(null);
           </div>
         </div>
       </div>
-      <div class="settings-card"><AppIcon class="card-icon" name="note" :size="18" /><div class="card-text"><strong>一张随手便签</strong><span>点击右上角按钮编辑；大尺寸提供加粗与列表，Ctrl+Enter 完成编辑</span></div></div>
+      <NoteRetention />
+      <div class="settings-card"><AppIcon class="card-icon" name="note" :size="18" /><div class="card-text"><strong>桌面多便签</strong><span>桌面直接新建、编辑、删除，右键查看列表；第一行自动生成标题。支持 Markdown、公式与图表，Ctrl+Enter 完成编辑。</span></div></div>
     </div>
   </template>
   <template v-else-if="kind === 'countdown'">

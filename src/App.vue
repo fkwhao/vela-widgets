@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import CalendarWidget from "./components/CalendarWidget.vue";
+import HoverHint from "./components/HoverHint.vue";
 import ContextMenuWindow from "./components/ContextMenuWindow.vue";
 import ManagerView from "./components/ManagerView.vue";
 import ClockWidget from "./components/ClockWidget.vue";
-import NoteWidget from "./components/NoteWidget.vue";
+const NoteWidget = defineAsyncComponent(() => import("./components/NoteWidget.vue"));
 import CountdownWidget from "./components/CountdownWidget.vue";
 import TodoWidget from "./components/TodoWidget.vue";
-import { openManager } from "./lib/backend";
+import { openManager, checkHolidayUpdates } from "./lib/backend";
 import { applySnapshot, refreshSnapshot, snapshot } from "./lib/store";
 import { isNativeApp } from "./lib/backend";
 import type { AppSnapshot } from "./types";
@@ -22,6 +23,10 @@ const isManager = computed(() => view === "manager");
 const systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
 let pixelRatioQuery: MediaQueryList | undefined;
 let unlistenSnapshot: (() => void) | undefined;
+let holidayTimer: ReturnType<typeof setInterval> | undefined;
+function onPreviewHolidays(event: Event): void { applySnapshot((event as CustomEvent<AppSnapshot>).detail); }
+function checkPreviewHolidays(): void { if (!isNativeApp()) void checkHolidayUpdates(true).catch(() => undefined); }
+watch(() => snapshot.value.settings.calendar.autoUpdate, enabled => { if (enabled) checkPreviewHolidays(); });
 
 function syncWidgetPixelGrid(): void {
   const scale = window.devicePixelRatio || 1;
@@ -71,7 +76,10 @@ onMounted(() => {
       })
       .catch(() => refreshSnapshot());
   } else {
-    void refreshSnapshot();
+    window.addEventListener("vela:holidays-updated", onPreviewHolidays);
+    window.addEventListener("storage", refreshOnFocus);
+    void refreshSnapshot().then(checkPreviewHolidays);
+    holidayTimer = setInterval(checkPreviewHolidays, 60_000);
   }
 });
 
@@ -81,10 +89,14 @@ onUnmounted(() => {
   window.removeEventListener("focus", refreshOnFocus);
   systemThemeQuery?.removeEventListener("change", applyTheme);
   unlistenSnapshot?.();
+  window.removeEventListener("vela:holidays-updated", onPreviewHolidays);
+  window.removeEventListener("storage", refreshOnFocus);
+  if (holidayTimer) clearInterval(holidayTimer);
 });
 </script>
 
 <template>
+  <HoverHint :manager="isManager" />
   <ManagerView v-if="isManager" />
   <CalendarWidget v-else-if="view === 'calendar'" />
   <TodoWidget v-else-if="view === 'todo'" />

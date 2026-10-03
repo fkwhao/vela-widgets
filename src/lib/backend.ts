@@ -1,5 +1,7 @@
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { normalizeNotes, nextNoteId } from "./notes";
+import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolidayCache } from "./holidays";
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../types";
 
 const previewKey = "vela.preview.snapshot.v1";
@@ -14,7 +16,7 @@ function readPreview(): AppSnapshot {
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<AppSnapshot>;
       const defaults = structuredClone(defaultSnapshot);
-      return {
+      const next: AppSnapshot = {
         ...defaults,
         ...parsed,
         settings: {
@@ -23,18 +25,24 @@ function readPreview(): AppSnapshot {
           widgetTransparency: parsed.settings?.widgetTransparency ?? defaults.settings.widgetTransparency,
           widgetCornerRadius: parsed.settings?.widgetCornerRadius ?? defaults.settings.widgetCornerRadius,
           clock: { ...defaults.settings.clock, ...parsed.settings?.clock },
-          note: { ...defaults.settings.note, ...parsed.settings?.note },
+          calendar: { ...defaults.settings.calendar, ...parsed.settings?.calendar },
+          note: normalizeNotes(parsed.settings?.note ?? defaults.settings.note),
           // Merge per widget so fields added later (such as size) keep their defaults.
           widgets: Object.fromEntries(widgetKinds.map((kind) => [kind, { ...defaults.settings.widgets[kind], ...parsed.settings?.widgets?.[kind] }])) as AppSnapshot["settings"]["widgets"],
         },
         todos: Array.isArray(parsed.todos) ? parsed.todos : defaults.todos,
         countdowns: Array.isArray(parsed.countdowns) ? parsed.countdowns : [],
+        holidays: normalizeHolidayCache(parsed.holidays, defaults.holidays.data),
       };
+      if (JSON.stringify(next) !== stored) writePreview(next);
+      return next;
     }
   } catch {
     // An unreadable preview snapshot is replaced with the safe first-run state.
   }
-  return structuredClone(defaultSnapshot);
+  const initial = structuredClone(defaultSnapshot);
+  initial.settings.note = normalizeNotes(initial.settings.note);
+  return writePreview(initial);
 }
 
 function writePreview(snapshot: AppSnapshot): AppSnapshot {
@@ -197,15 +205,85 @@ export async function setClockSettings(clock: ClockSettings): Promise<AppSnapsho
   if (isNativeApp()) return invoke("set_clock_settings", { clock });
   return updatePreview((s) => { s.settings.clock = clock; });
 }
-export async function saveNote(text: string): Promise<AppSnapshot> {
-  if (isNativeApp()) return invoke("save_note", { text });
-  return updatePreview((s) => { s.settings.note.text = text; });
+export async function saveNote(id: number, text: string): Promise<AppSnapshot> {
+  if (Array.from(text).length > 20000) throw new Error("便签最多保存 20000 字。");
+  if (isNativeApp()) return invoke("save_note", { id, text });
+  return updatePreview((s) => { const note = s.settings.note.notes.find(n => n.id === id); if (!note) throw new Error("这个便签已被删除。"); note.text = text; s.settings.note = normalizeNotes(s.settings.note); });
+}
+
+export async function setCalendarSettings(calendar: import("../types").CalendarSettings): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("set_calendar_settings", { calendar });
+  return updatePreview(s => { s.settings.calendar = calendar; });
+}
+
+let previewHolidayCheck: Promise<AppSnapshot> | undefined;
+export async function checkHolidayUpdates(automatic = false): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("check_holiday_updates");
+  if (previewHolidayCheck) return previewHolidayCheck;
+  const initial = readPreview();
+  if (automatic && (!initial.settings.calendar.autoUpdate || !holidayUpdateDue(initial.holidays.lastAttemptAt))) return initial;
+  updatePreview(s => { s.holidays.lastAttemptAt = Date.now(); });
+  previewHolidayCheck = (async () => {
+    let next: import("../types").HolidayData | null = null; let error: string | null = null;
+    try { next = await fetchHolidayUpdate(initial.holidays.data); }
+    catch (e) { error = e instanceof Error && /^(节假日|更新|下载)/.test(e.message) ? e.message : "无法连接节假日更新源，请稍后重试；本地数据仍可使用。"; }
+    const result = updatePreview(s => {
+      if (error) s.holidays.lastError = error;
+      else {
+        if (next) { s.holidays.data = mergeHolidayData(s.holidays.data, next); s.holidays.lastUpdatedAt = Date.now(); }
+        s.holidays.lastCheckedAt = Date.now(); s.holidays.lastError = null;
+      }
+    });
+    window.dispatchEvent(new CustomEvent("vela:holidays-updated", { detail: result }));
+    return result;
+  })();
+  try { return await previewHolidayCheck; } finally { previewHolidayCheck = undefined; }
+}
+export async function createNote(): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("create_note");
+  return updatePreview(s => {
+    if (s.settings.note.notes.length >= 200) throw new Error("最多保存 200 篇便签。");
+    const id = nextNoteId(s.settings.note.notes);
+    s.settings.note.notes.push({ id, text: "", color: s.settings.note.color, createdAt: Date.now(), deleteAfterHours: null });
+    s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note);
+  });
+}
+export async function selectNote(id: number): Promise<AppSnapshot> {
+  if (isNativeApp()) { if ((await getSnapshot()).settings.widgets.note.enabled) await flushNativeNote(); return invoke("select_note", { id }); }
+  return updatePreview(s => { if (!s.settings.note.notes.some(n => n.id === id)) throw new Error("这个便签已被删除。"); s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note); });
+}
+export async function deleteNote(id: number): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("delete_note", { id });
+  return updatePreview(s => {
+    const index = s.settings.note.notes.findIndex(n => n.id === id);
+    if (index < 0) throw new Error("这个便签已被删除。");
+    s.settings.note.notes.splice(index, 1);
+    if (s.settings.note.activeId === id) s.settings.note.activeId = (s.settings.note.notes[index] ?? s.settings.note.notes.at(-1))?.id ?? 0;
+    s.settings.note = normalizeNotes(s.settings.note);
+  });
+}
+export async function restoreNote(item: import("../types").NoteItem): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("restore_note", { item });
+  return updatePreview(s => {
+    if (s.settings.note.notes.length >= 200) throw new Error("最多保存 200 篇便签。");
+    const id = nextNoteId(s.settings.note.notes);
+    s.settings.note.notes.push({ ...item, id, deleteAfterHours: null }); s.settings.note.activeId = id; s.settings.note = normalizeNotes(s.settings.note);
+  });
+}
+export async function setNoteExpiry(id: number, hours: number | null): Promise<AppSnapshot> {
+  if (hours !== null && (!Number.isInteger(hours) || hours < 1 || hours > 87600)) throw new Error("请输入 1–87600 小时。");
+  if (isNativeApp()) return invoke("set_note_expiry", { id, hours });
+  return updatePreview(s => { const item = s.settings.note.notes.find(n => n.id === id); if (!item) throw new Error("这个便签已被删除。"); item.deleteAfterHours = hours; s.settings.note = normalizeNotes(s.settings.note); });
+}
+export async function openNoteLink(url: string): Promise<void> {
+  if (!/^(https?:\/\/|mailto:)/i.test(url)) throw new Error("不支持打开这个链接。");
+  if (isNativeApp()) await invoke("open_note_link", { url }); else window.open(url, "_blank", "noopener,noreferrer");
 }
 export async function setNoteColor(color: string): Promise<AppSnapshot> {
   if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error("请选择有效的颜色。");
   color = color.toLowerCase();
   if (isNativeApp()) return invoke("set_note_color", { color });
-  return updatePreview((s) => { s.settings.note.color = color; });
+  return updatePreview((s) => { const note = s.settings.note.notes.find(n => n.id === s.settings.note.activeId); if (note) note.color = color; s.settings.note.color = color; s.settings.note = normalizeNotes(s.settings.note); });
 }
 export async function saveCountdown(item: Omit<CountdownItem, "id" | "createdDate"> & { id: number | null; createdDate: string }): Promise<AppSnapshot> {
   if (isNativeApp()) return invoke("save_countdown", { item });

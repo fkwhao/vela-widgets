@@ -12,6 +12,7 @@ use tauri::{
 mod native_surface;
 
 mod extras;
+mod holidays;
 use extras::{ClockSettings, CountdownItem, NoteSettings};
 const WIDGET_KINDS: [&str; 5] = ["calendar", "todo", "clock", "note", "countdown"];
 struct WidgetDefinition {
@@ -88,6 +89,7 @@ pub struct AppState {
     database: Mutex<Connection>,
     context_menu_widget: Mutex<Option<String>>,
     context_menu_ready: Mutex<bool>,
+    holiday_update: Mutex<()>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,6 +117,8 @@ pub struct Settings {
     pub widget_corner_radius: u8,
     pub week_starts_monday: bool,
     #[serde(default)]
+    pub calendar: holidays::CalendarSettings,
+    #[serde(default)]
     pub clock: ClockSettings,
     #[serde(default)]
     pub note: NoteSettings,
@@ -137,6 +141,7 @@ pub struct AppSnapshot {
     pub settings: Settings,
     pub todos: Vec<TodoItem>,
     pub countdowns: Vec<CountdownItem>,
+    pub holidays: holidays::HolidayCache,
 }
 
 impl Default for Settings {
@@ -166,6 +171,7 @@ impl Default for Settings {
             widget_transparency: default_widget_transparency(),
             widget_corner_radius: default_widget_corner_radius(),
             week_starts_monday: true,
+            calendar: holidays::CalendarSettings::default(),
             widgets,
         }
     }
@@ -230,6 +236,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
     extras::initialize(connection)?;
+    holidays::initialize(connection)?;
     Ok(())
 }
 
@@ -241,12 +248,27 @@ fn read_settings(connection: &Connection) -> rusqlite::Result<Settings> {
             |row| row.get(0),
         )
         .optional()?;
+    let original = document.clone();
     let mut settings = document
         .and_then(|value| serde_json::from_str::<Settings>(&value).ok())
         .unwrap_or_default();
+    settings.note.normalize();
+    settings.note.expire(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64,
+    );
     // Preserve existing data while supplying disabled defaults for new widgets.
     for (kind, widget) in Settings::default().widgets {
         settings.widgets.entry(kind).or_insert(widget);
+    }
+    if original
+        .as_deref()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        != serde_json::to_value(&settings).ok()
+    {
+        write_settings(connection, &settings)?;
     }
     Ok(settings)
 }
@@ -284,6 +306,7 @@ fn read_snapshot(connection: &Connection) -> rusqlite::Result<AppSnapshot> {
         settings: read_settings(connection)?,
         todos: read_todos(connection)?,
         countdowns: extras::read_countdowns(connection)?,
+        holidays: holidays::read_cache(connection)?,
     })
 }
 
@@ -586,7 +609,9 @@ async fn show_context_menu(
         .ok_or_else(|| "组件窗口尚未准备好。".to_string())?;
     let scale = widget.scale_factor().map_err(|error| error.to_string())?;
     let widget_position = widget.outer_position().map_err(|error| error.to_string())?;
-    let menu_height = if kind == "todo" {
+    let menu_height = if kind == "note" {
+        CONTEXT_MENU_HEIGHT + 108.0
+    } else if kind == "todo" {
         TODO_CONTEXT_MENU_HEIGHT
     } else {
         CONTEXT_MENU_HEIGHT
@@ -1042,6 +1067,7 @@ pub fn run() {
                 database: Mutex::new(connection),
                 context_menu_widget: Mutex::new(None),
                 context_menu_ready: Mutex::new(false),
+                holiday_update: Mutex::new(()),
             });
 
             create_manager_window(app).map_err(|error| {
@@ -1059,6 +1085,8 @@ pub fn run() {
                     )?;
                 }
             }
+            extras::start_note_expiry_worker(app.handle().clone());
+            holidays::start_update_worker(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1147,8 +1175,16 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            holidays::set_calendar_settings,
+            holidays::check_holiday_updates,
             extras::set_clock_settings,
             extras::save_note,
+            extras::create_note,
+            extras::select_note,
+            extras::delete_note,
+            extras::restore_note,
+            extras::set_note_expiry,
+            extras::open_note_link,
             extras::set_note_color,
             extras::save_countdown,
             extras::delete_countdown,

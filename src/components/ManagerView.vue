@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import WidgetPreferences from "./WidgetPreferences.vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from "vue";
+const WidgetPreferences = defineAsyncComponent(() => import("./WidgetPreferences.vue"));
+const CalendarPreferences = defineAsyncComponent(() => import("./CalendarPreferences.vue"));
 import AppIcon from "./AppIcon.vue";
 import WidgetThemePreview from "./WidgetThemePreview.vue";
 import VelaSelect from "./VelaSelect.vue";
@@ -283,7 +284,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <WidgetPreferences :key="settingKind" :kind="settingKind" />
+            <WidgetPreferences v-if="['clock', 'note', 'countdown'].includes(settingKind)" :key="settingKind" :kind="settingKind" />
 
             <template v-if="settingKind === 'calendar'">
               <h2 class="section-title">日历</h2>
@@ -299,6 +300,7 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+              <CalendarPreferences />
             </template>
           </template>
 
@@ -338,7 +340,7 @@ onUnmounted(() => {
                     :aria-pressed="snapshot.settings.accentColor.toLowerCase() === color"
                     @click="chooseAccentColor(color)"
                   ></button>
-                  <label class="accent-custom" title="自定义强调色">
+                  <label class="accent-custom" data-tooltip="自定义强调色">
                     <input type="color" :value="snapshot.settings.accentColor" aria-label="自定义强调色" @change="onAccentChange" />
                   </label>
                 </div>

@@ -248,7 +248,7 @@ onUnmounted(() => {
       <ul v-if="openTodos.length" class="todo-glance-list todo-page-list" :key="`${size}-${page}`" :data-direction="pageDirection > 0 ? 'down' : 'up'" aria-label="待办列表">
         <li v-for="todo in pageItems" :key="todo.id">
           <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
-          <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
+          <span class="todo-glance-text" :data-tooltip="todo.title">{{ todo.title }}</span>
         </li>
       </ul>
       <p v-else class="todo-glance-empty">没有待办事项</p>
@@ -270,7 +270,7 @@ onUnmounted(() => {
           <ul v-if="openTodos.length" class="todo-glance-list todo-page-list" :key="`${size}-${page}`" :data-direction="pageDirection > 0 ? 'down' : 'up'" aria-label="待办列表">
             <li v-for="todo in pageItems" :key="todo.id">
               <button class="todo-check" aria-label="标记完成" :aria-pressed="false" @click="toggle(todo)"></button>
-              <span class="todo-glance-text" :title="todo.title">{{ todo.title }}</span>
+              <span class="todo-glance-text" :data-tooltip="todo.title">{{ todo.title }}</span>
               <span v-if="todo.dueDate" class="todo-due-chip" :class="{ overdue: isOverdue(todo) }">{{ formatDueDate(todo.dueDate) }}</span>
             </li>
           </ul>
@@ -291,7 +291,7 @@ onUnmounted(() => {
           <h1>待办</h1>
           <span>{{ activeCount ? `${activeCount} 项未完成` : "全部完成" }}</span>
         </div>
-        <button class="widget-icon-button todo-add-button" aria-label="新建待办" title="新建待办" @click="openComposer"><AppIcon name="plus" :size="16" /></button>
+        <button class="widget-icon-button todo-add-button" aria-label="新建待办" data-tooltip="新建待办" @click="openComposer"><AppIcon name="plus" :size="16" /></button>
       </header>
 
       <div class="todo-segmented" role="tablist">
@@ -319,12 +319,12 @@ onUnmounted(() => {
               </form>
             </template>
             <template v-else>
-              <button class="todo-title-button" :title="todo.title" @dblclick="beginEdit(todo)">{{ todo.title }}</button>
+              <button class="todo-title-button" :data-tooltip="todo.title" @dblclick="beginEdit(todo)">{{ todo.title }}</button>
               <span v-if="todo.dueDate" class="todo-due" :class="{ overdue: isOverdue(todo) }"><AppIcon name="clock" :size="11" />{{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}</span>
             </template>
           </div>
-          <button class="todo-more" :aria-label="`编辑 ${todo.title}`" title="编辑" @click="beginEdit(todo)"><AppIcon name="more" :size="15" /></button>
-          <button class="todo-delete" :aria-label="`删除 ${todo.title}`" title="删除" @click="remove(todo)"><AppIcon name="close" :size="13" /></button>
+          <button class="todo-more" :aria-label="`编辑 ${todo.title}`" data-tooltip="编辑" @click="beginEdit(todo)"><AppIcon name="more" :size="15" /></button>
+          <button class="todo-delete" :aria-label="`删除 ${todo.title}`" data-tooltip="删除" @click="remove(todo)"><AppIcon name="close" :size="13" /></button>
         </article>
       </section>
       <WidgetPageControls :page="page" :count="pages.length" :editing="editingId !== null" @move="movePage" />

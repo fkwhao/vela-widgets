@@ -29,6 +29,7 @@ onUnmounted(() => { if (timer) clearTimeout(timer); });
     <slot :widget="widget" :drag="widget.locked ? undefined : 'deep'" />
     <p v-if="error" class="extra-notice" role="alert">{{ error }}</p>
     <div v-if="menu" class="widget-context-menu" role="menu" :style="{ position: 'fixed', left: `${menu.x}px`, top: `${menu.y}px`, zIndex: 20 }" @click.stop>
+      <slot name="context-actions" :dismiss="() => menu = null" />
       <button class="context-primary" role="menuitem" @click="run(openManager)"><AppIcon name="sliders" :size="14" />Vela 偏好设置</button>
       <button role="menuitem" @click="run(() => setWidgetLayer(kind, !widget.alwaysOnTop))"><AppIcon name="arrow-up-right" :size="14" />{{ widget.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
       <div class="context-divider"></div><WidgetSizeMenuRow :size="widget.size" @choose="resize" /><div class="context-divider"></div>

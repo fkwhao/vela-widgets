@@ -47,6 +47,7 @@ async function composeTodo(): Promise<void> {
   await dismissMenu();
   await emitTo("todo", "vela://todo-compose");
 }
+async function noteAction(action: string): Promise<void> { await dismissMenu(); await emitTo("note", "vela://note-action", action); }
 
 async function toggleLayer(): Promise<void> {
   const kind = widgetKind.value;
@@ -135,7 +136,8 @@ onUnmounted(() => {
         </button>
         <div class="context-divider"></div>
       </template>
-      <button :class="{ 'context-primary': widgetKind !== 'todo' }" role="menuitem" @click="showPreferences">
+      <template v-if="widgetKind === 'note'"><button class="context-primary" role="menuitem" @click="noteAction('new')"><AppIcon name="plus" :size="14" />新建便签</button><button role="menuitem" @click="noteAction('list')"><AppIcon name="note" :size="14" />便签列表</button><button class="context-danger" role="menuitem" @click="noteAction('delete')"><AppIcon name="trash" :size="14" />删除当前便签</button><div class="context-divider"></div></template>
+      <button :class="{ 'context-primary': widgetKind !== 'todo' && widgetKind !== 'note' }" role="menuitem" @click="showPreferences">
         <AppIcon name="sliders" :size="14" />Vela 偏好设置
       </button>
       <button role="menuitem" :disabled="layerFailed" @click="toggleLayer">

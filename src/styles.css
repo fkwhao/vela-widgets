@@ -22,6 +22,8 @@
   --widget-radius: 19px;
   --widget-edge-inset: 1px;
 }
+.vela-hover-hint { position: fixed; z-index: 1000; width: max-content; box-sizing: border-box; padding: 9px 12px; overflow: hidden; color: var(--win-text); background: var(--win-flyout); border: 1px solid var(--win-control-stroke-bottom); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.16); font-size: 12px; line-height: 1.6; font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: none; user-select: none; }
+.vela-hover-hint.widget-hint { padding: 6px 9px; color: var(--wg-text); background: rgba(var(--wg-tint), .98); border-color: var(--wg-stroke); border-radius: 7px; font-size: 11px; line-height: 1.5; }
 
 :root[data-theme="dark"] {
   color: #ededed;

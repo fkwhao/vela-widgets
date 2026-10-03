@@ -6,6 +6,6 @@ defineEmits<{ move: [direction: number] }>();
 <template>
   <nav v-if="count > 1" class="todo-pagination" :aria-label="`${label}分页`">
     <span class="todo-page-number" aria-live="polite">{{ page + 1 }} / {{ count }}</span>
-    <div class="todo-page-actions"><button class="widget-icon-button" :aria-label="`上一页${label}`" title="上一页" :disabled="page === 0 || editing" @click="$emit('move', -1)"><AppIcon name="chevron-up" :size="14" /></button><button class="widget-icon-button" :aria-label="`下一页${label}`" title="下一页" :disabled="page >= count - 1 || editing" @click="$emit('move', 1)"><AppIcon name="chevron-down" :size="14" /></button></div>
+    <div class="todo-page-actions"><button class="widget-icon-button" :aria-label="`上一页${label}`" data-tooltip="上一页" :disabled="page === 0 || editing" @click="$emit('move', -1)"><AppIcon name="chevron-up" :size="14" /></button><button class="widget-icon-button" :aria-label="`下一页${label}`" data-tooltip="下一页" :disabled="page >= count - 1 || editing" @click="$emit('move', 1)"><AppIcon name="chevron-down" :size="14" /></button></div>
   </nav>
 </template>

@@ -6,6 +6,7 @@ import { isNativeApp, openManager, showWidgetContextMenu } from "../lib/backend"
 import { setWidgetEnabled, setWidgetLayer, setWidgetSize, snapshot } from "../lib/store";
 import { useWindowBounds } from "../lib/useWindowBounds";
 import type { WidgetSize } from "../types";
+import { holidayLabel, visibleHoliday } from "../lib/holidays";
 
 interface CalendarCell {
   date: Date;
@@ -38,9 +39,21 @@ function isoWeek(date: Date): number {
 
 const widget = computed(() => snapshot.value.settings.widgets.calendar);
 const size = computed(() => widget.value.size);
-// Small and medium layouts have no scrolling content, so the whole surface drags.
+// Medium reserves the right panel for month navigation; the today panel drags.
 const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
+const previewSize = computed(() => isNativeApp() ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
 const todayKey = computed(() => dateKey(today.value));
+const holidaySettings = computed(() => snapshot.value.settings.calendar);
+const holidayMap = computed(() => new Map(snapshot.value.holidays.data.years.flatMap(y => y.days.map(day => [day.date, day] as const))));
+function holidayFor(key: string) { return visibleHoliday(holidayMap.value.get(key), holidaySettings.value); }
+function holidayText(key: string): string { const day = holidayFor(key); return day ? holidayLabel(day) : ""; }
+const todayHoliday = computed(() => holidayText(todayKey.value));
+const selectedHoliday = computed(() => holidayText(selectedDate.value));
+const visibleYearKnown = computed(() => snapshot.value.holidays.data.years.some(y => y.year === visibleMonth.value.getFullYear()));
+const showHolidayData = computed(() => holidaySettings.value.showHolidays || holidaySettings.value.showWorkdays);
+function cellLabel(cell: CalendarCell): string {
+  return [new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date), holidayText(cell.key)].filter(Boolean).join('，');
+}
 const weekStartsMonday = computed(() => snapshot.value.settings.weekStartsMonday);
 
 const weekdayLabels = computed(() =>
@@ -58,10 +71,9 @@ function monthCells(month: Date, rows: number): CalendarCell[] {
 }
 
 const cells = computed(() => monthCells(visibleMonth.value, 6));
-// The medium layout always shows the current month and drops trailing empty weeks.
-const todayMonthCells = computed(() => {
-  const month = new Date(today.value.getFullYear(), today.value.getMonth(), 1);
-  const all = monthCells(month, 6);
+// Medium follows the same browsed month as large and drops trailing empty weeks.
+const miniMonthCells = computed(() => {
+  const all = cells.value;
   return all.slice(0, all[35].inMonth ? 42 : 35);
 });
 
@@ -168,8 +180,9 @@ onUnmounted(() => {
 <template>
   <main
     class="widget-window calendar-widget"
+    :style="previewSize"
     :class="[`size-${size}`, { 'widget-draggable': !widget.locked }]"
-    :data-tauri-drag-region="size === 'large' ? undefined : dragRegion"
+    :data-tauri-drag-region="size === 'small' ? dragRegion : undefined"
     @contextmenu.prevent.stop="openContextMenu"
   >
     <!-- Small: today at a glance -->
@@ -178,28 +191,38 @@ onUnmounted(() => {
         <span class="cal-eyebrow">{{ todayWeekday }}</span>
         <strong class="cal-hero-day">{{ today.getDate() }}</strong>
         <span class="cal-caption">{{ todayMonthLabel }}</span>
-        <span class="cal-caption subtle">{{ todayWeekLabel }}</span>
+        <span class="cal-caption subtle" :class="{ 'cal-holiday-caption': todayHoliday }">{{ todayHoliday || todayWeekLabel }}</span>
       </div>
     </template>
 
-    <!-- Medium: today beside the current month -->
+    <!-- Medium: today beside a browsable month -->
     <template v-else-if="size === 'medium'">
       <div class="cal-medium">
-        <div class="cal-today-panel">
+        <div class="cal-today-panel" :data-tauri-drag-region="dragRegion">
           <span class="cal-eyebrow">{{ todayWeekday }}</span>
           <strong class="cal-hero-day">{{ today.getDate() }}</strong>
           <span class="cal-caption">{{ todayMonthLabel }}</span>
-          <span class="cal-caption subtle">{{ todayWeekLabel }}</span>
+          <span class="cal-caption subtle" :class="{ 'cal-holiday-caption': todayHoliday }" :data-tooltip="todayHoliday">{{ todayHoliday || todayWeekLabel }}</span>
         </div>
-        <div class="cal-mini-month" aria-label="本月月历">
+        <div class="cal-mini-month" :aria-label="`${yearTitle}年${monthTitle}月历`">
+          <header class="cal-mini-header">
+            <strong aria-live="polite" :data-tooltip="showHolidayData && !visibleYearKnown ? '该年份的假期安排尚未收录' : undefined">{{ yearTitle }}年{{ monthTitle }}<i v-if="showHolidayData && !visibleYearKnown" class="cal-data-missing" aria-label="假期安排尚未收录">·</i></strong>
+            <div class="cal-mini-actions">
+              <button v-if="!showingToday" class="widget-chip" aria-label="回到今天" @click="goToToday">今</button>
+              <button class="widget-icon-button" aria-label="上个月" @click="moveMonth(-1)"><AppIcon name="chevron-left" :size="13" /></button>
+              <button class="widget-icon-button" aria-label="下个月" @click="moveMonth(1)"><AppIcon name="chevron-right" :size="13" /></button>
+            </div>
+          </header>
           <div class="cal-mini-grid">
             <span v-for="weekday in weekdayLabels" :key="`w-${weekday}`" class="cal-mini-weekday">{{ weekday }}</span>
             <span
-              v-for="cell in todayMonthCells"
+              v-for="cell in miniMonthCells"
               :key="cell.key"
               class="cal-mini-day"
               :class="{ outside: !cell.inMonth, today: cell.key === todayKey }"
-            >{{ cell.inMonth ? cell.date.getDate() : "" }}</span>
+              :data-tooltip="cell.inMonth ? cellLabel(cell) : undefined"
+              :aria-label="cell.inMonth ? cellLabel(cell) : undefined"
+            >{{ cell.inMonth ? cell.date.getDate() : "" }}<i v-if="cell.inMonth && holidayFor(cell.key)" class="cal-holiday-dot" :class="holidayFor(cell.key)?.type" aria-hidden="true"></i></span>
           </div>
         </div>
       </div>
@@ -226,15 +249,16 @@ onUnmounted(() => {
             :key="cell.key"
             class="date-cell"
             :class="{ outside: !cell.inMonth, today: cell.key === todayKey, selected: cell.key === selectedDate }"
-            :aria-label="new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(cell.date)"
+            :aria-label="cellLabel(cell)"
+            :data-tooltip="cellLabel(cell)"
             :aria-pressed="cell.key === selectedDate"
             @click="selectedDate = cell.key"
-          ><span>{{ cell.date.getDate() }}</span></button>
+          ><span>{{ cell.date.getDate() }}</span><i v-if="holidayFor(cell.key)" class="cal-holiday-mark" :class="holidayFor(cell.key)?.type" aria-hidden="true">{{ holidayFor(cell.key)?.type === 'holiday' ? '休' : '班' }}</i></button>
         </div>
       </section>
 
       <footer class="calendar-footer" aria-label="已选择日期">
-        <strong>{{ selectedSummary.label }}</strong>
+        <div class="calendar-footer-date"><strong>{{ selectedSummary.label }}</strong><small v-if="selectedHoliday" class="cal-holiday-caption">{{ selectedHoliday }}</small><small v-else-if="showHolidayData && !snapshot.holidays.data.years.some(y => y.year === Number(selectedDate.slice(0, 4)))">该年份假期安排尚未收录</small></div>
         <span class="calendar-relative" :class="{ current: selectedSummary.relative === '今天' }">{{ selectedSummary.relative }}</span>
       </footer>
     </template>

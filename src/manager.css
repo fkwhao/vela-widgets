@@ -148,6 +148,14 @@
 .settings-card.clickable:hover { background: var(--win-card-hover); }
 .settings-card.clickable:active { background: var(--win-card-press); }
 .settings-card.stacked { display: grid; gap: 16px; }
+.holiday-data-card { grid-template-columns: 18px minmax(0, 1fr) auto; column-gap: 16px; }
+.holiday-data-card > .card-row { display: contents; }
+.holiday-data-details { display: grid; grid-column: 2 / -1; gap: 6px; color: var(--win-text-2); font-size: 12px; line-height: 1.6; }
+.holiday-data-card > .info-bar { grid-column: 2 / -1; margin: 0; }
+.holiday-data-heading { display: flex; height: 20px; align-items: center; gap: 6px; }
+.holiday-info-button { display: grid; width: 20px; height: 20px; flex: none; place-items: center; padding: 0; color: var(--win-text-3); border: 0; border-radius: 4px; background: transparent; cursor: help; }
+.holiday-info-button:hover { color: var(--win-text); background: var(--win-subtle-hover); }
+.holiday-info-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .settings-card.disabled .card-icon, .settings-card.disabled .card-text { opacity: .5; }
 .card-row { display: flex; align-items: center; gap: 16px; }
 .card-link { position: absolute; inset: 0; z-index: 0; border: 0; border-radius: inherit; background: transparent; cursor: default; }
@@ -359,3 +367,12 @@
 .note-color-custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .note-color-custom:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .note-color-custom.is-busy, .note-color-custom input:disabled { cursor: default; }
+/* Per-note retention follows the existing settings cards. */
+.note-retention-controls { display: flex; flex-wrap: wrap; gap: 14px; }
+.note-retention-controls.is-busy { pointer-events: none; opacity: .65; }
+.note-retention-controls > label { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.note-retention-custom { display: flex; align-items: end; gap: 10px; }
+.note-retention-custom label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.note-retention-custom input { width: 100px; }
+.note-retention-date { width: 100%; margin: 0; color: var(--win-text-2); font-size: 12px; line-height: 1.8; }
+.note-retention-hint { width: 100%; margin: 0; color: var(--win-text-2); font-size: 11px; line-height: 1.6; }

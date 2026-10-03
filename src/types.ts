@@ -1,3 +1,4 @@
+import bundledHolidays from "../data/holidays/china.json";
 export type WidgetKind = "calendar" | "todo" | "clock" | "note" | "countdown";
 export type ThemeMode = "light" | "dark" | "system";
 export type WidgetSize = "small" | "medium" | "large";
@@ -20,8 +21,14 @@ export interface WidgetSettings {
 }
 
 export interface ClockCity { name: string; timeZone: string }
+export interface CalendarSettings { showHolidays: boolean; showWorkdays: boolean; autoUpdate: boolean }
+export interface HolidayDay { date: string; name: string; type: "holiday" | "workday" }
+export interface HolidayYear { year: number; source: string; days: HolidayDay[] }
+export interface HolidayData { schemaVersion: number; revision: number; updatedAt: string; years: HolidayYear[] }
+export interface HolidayCache { data: HolidayData; lastAttemptAt: number | null; lastCheckedAt: number | null; lastUpdatedAt: number | null; lastError: string | null }
 export interface ClockSettings { hour12: boolean; showSeconds: boolean; cities: ClockCity[] }
-export interface NoteSettings { text: string; color: string }
+export interface NoteItem { id: number; text: string; color: string; createdAt: number; deleteAfterHours: number | null }
+export interface NoteSettings { text: string; color: string; notes: NoteItem[]; activeId: number | null }
 export interface CountdownItem { id: number; title: string; date: string; yearly: boolean; countUp: boolean; createdDate: string }
 
 export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; description: string; defaultSize: WidgetSize; sizes: WidgetSize[] }> = {
@@ -40,6 +47,7 @@ export interface Settings {
   widgetTransparency: number;
   widgetCornerRadius: number;
   weekStartsMonday: boolean;
+  calendar: CalendarSettings;
   clock: ClockSettings;
   note: NoteSettings;
   widgets: Record<WidgetKind, WidgetSettings>;
@@ -57,6 +65,7 @@ export interface AppSnapshot {
   settings: Settings;
   todos: TodoItem[];
   countdowns: CountdownItem[];
+  holidays: HolidayCache;
 }
 
 export const defaultSnapshot: AppSnapshot = {
@@ -66,8 +75,9 @@ export const defaultSnapshot: AppSnapshot = {
     widgetTransparency: 12,
     widgetCornerRadius: 19,
     weekStartsMonday: true,
+    calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false },
     clock: { hour12: false, showSeconds: false, cities: [] },
-    note: { text: "", color: "#3b67b8" },
+    note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null }], activeId: 1 },
     widgets: {
       clock: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       note: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },
@@ -96,4 +106,5 @@ export const defaultSnapshot: AppSnapshot = {
   },
   todos: [],
   countdowns: [],
+  holidays: { data: bundledHolidays as HolidayData, lastAttemptAt: null, lastCheckedAt: null, lastUpdatedAt: null, lastError: null },
 };

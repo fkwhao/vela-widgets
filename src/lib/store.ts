@@ -41,6 +41,9 @@ export async function setWeekStartsMonday(monday: boolean): Promise<void> {
   applySnapshot(await backend.setWeekStartsMonday(monday));
 }
 
+export async function setCalendarSettings(calendar: import("../types").CalendarSettings): Promise<void> { applySnapshot(await backend.setCalendarSettings(calendar)); }
+export async function checkHolidayUpdates(): Promise<void> { applySnapshot(await backend.checkHolidayUpdates()); }
+
 export async function setTheme(theme: ThemeMode): Promise<void> {
   applySnapshot(await backend.setTheme(theme));
 }
@@ -77,7 +80,12 @@ export async function saveWidgetPosition(kind: WidgetKind, position: { x: number
 }
 
 export async function setClockSettings(clock: import("../types").ClockSettings): Promise<void> { applySnapshot(await backend.setClockSettings(clock)); }
-export async function saveNote(text: string): Promise<void> { applySnapshot(await backend.saveNote(text)); }
+export async function saveNote(id: number, text: string): Promise<void> { applySnapshot(await backend.saveNote(id, text)); }
+export async function createNote(): Promise<void> { applySnapshot(await backend.createNote()); }
+export async function selectNote(id: number): Promise<void> { applySnapshot(await backend.selectNote(id)); }
+export async function deleteNote(id: number): Promise<void> { applySnapshot(await backend.deleteNote(id)); }
+export async function restoreNote(item: import("../types").NoteItem): Promise<void> { applySnapshot(await backend.restoreNote(item)); }
+export async function setNoteExpiry(id: number, hours: number | null): Promise<void> { applySnapshot(await backend.setNoteExpiry(id, hours)); }
 export async function setNoteColor(color: string): Promise<void> { applySnapshot(await backend.setNoteColor(color)); }
 export async function saveCountdown(item: Parameters<typeof backend.saveCountdown>[0]): Promise<void> { applySnapshot(await backend.saveCountdown(item)); }
 export async function deleteCountdown(id: number): Promise<void> { applySnapshot(await backend.deleteCountdown(id)); }
