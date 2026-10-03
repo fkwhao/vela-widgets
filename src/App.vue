@@ -6,13 +6,14 @@ import CalendarWidget from "./components/CalendarWidget.vue";
 import HoverHint from "./components/HoverHint.vue";
 import ContextMenuWindow from "./components/ContextMenuWindow.vue";
 import ManagerView from "./components/ManagerView.vue";
+import ClockReminder from "./components/ClockReminder.vue";
 import ClockWidget from "./components/ClockWidget.vue";
 const NoteWidget = defineAsyncComponent(() => import("./components/NoteWidget.vue"));
 import CountdownWidget from "./components/CountdownWidget.vue";
 import TodoWidget from "./components/TodoWidget.vue";
 import { openManager, checkHolidayUpdates } from "./lib/backend";
 import { applySnapshot, refreshSnapshot, snapshot } from "./lib/store";
-import { isNativeApp } from "./lib/backend";
+import { tickPreviewClock, isNativeApp } from "./lib/backend";
 import type { AppSnapshot } from "./types";
 
 const query = new URLSearchParams(window.location.search);
@@ -23,6 +24,7 @@ const isManager = computed(() => view === "manager");
 const systemThemeQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
 let pixelRatioQuery: MediaQueryList | undefined;
 let unlistenSnapshot: (() => void) | undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
 let holidayTimer: ReturnType<typeof setInterval> | undefined;
 function onPreviewHolidays(event: Event): void { applySnapshot((event as CustomEvent<AppSnapshot>).detail); }
 function checkPreviewHolidays(): void { if (!isNativeApp()) void checkHolidayUpdates(true).catch(() => undefined); }
@@ -42,7 +44,7 @@ function applyTheme(): void {
   const systemDark = systemThemeQuery?.matches ?? false;
   const resolved = configured === "system" ? (systemDark ? "dark" : "light") : configured;
   document.documentElement.dataset.theme = resolved;
-  if (isManager.value && isNativeApp()) {
+  if ((isManager.value || view === "clock-reminder") && isNativeApp()) {
     // Keep the native title bar and Mica tint in step with Vela's own theme.
     void getCurrentWindow().setTheme(configured === "system" ? null : resolved).catch(() => undefined);
   }
@@ -77,6 +79,8 @@ onMounted(() => {
       .catch(() => refreshSnapshot());
   } else {
     window.addEventListener("vela:holidays-updated", onPreviewHolidays);
+    window.addEventListener("vela:clock-updated", onPreviewHolidays);
+    clockTimer = setInterval(tickPreviewClock, 1000);
     window.addEventListener("storage", refreshOnFocus);
     void refreshSnapshot().then(checkPreviewHolidays);
     holidayTimer = setInterval(checkPreviewHolidays, 60_000);
@@ -90,6 +94,8 @@ onUnmounted(() => {
   systemThemeQuery?.removeEventListener("change", applyTheme);
   unlistenSnapshot?.();
   window.removeEventListener("vela:holidays-updated", onPreviewHolidays);
+  window.removeEventListener("vela:clock-updated", onPreviewHolidays);
+  if (clockTimer) clearInterval(clockTimer);
   window.removeEventListener("storage", refreshOnFocus);
   if (holidayTimer) clearInterval(holidayTimer);
 });
@@ -97,7 +103,9 @@ onUnmounted(() => {
 
 <template>
   <HoverHint :manager="isManager" />
-  <ManagerView v-if="isManager" />
+  <ClockReminder v-if="!isNativeApp() && view !== 'clock-reminder' && snapshot.settings.clockTools.alerts.length" floating />
+  <ClockReminder v-if="view === 'clock-reminder'" />
+  <ManagerView v-else-if="isManager" />
   <CalendarWidget v-else-if="view === 'calendar'" />
   <TodoWidget v-else-if="view === 'todo'" />
   <ClockWidget v-else-if="view === 'clock'" />

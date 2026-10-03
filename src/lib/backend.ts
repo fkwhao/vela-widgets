@@ -1,5 +1,6 @@
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { applyClockAction, tickClockTools } from "./clockTools";
 import { normalizeNotes, nextNoteId } from "./notes";
 import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolidayCache } from "./holidays";
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../types";
@@ -25,6 +26,7 @@ function readPreview(): AppSnapshot {
           widgetTransparency: parsed.settings?.widgetTransparency ?? defaults.settings.widgetTransparency,
           widgetCornerRadius: parsed.settings?.widgetCornerRadius ?? defaults.settings.widgetCornerRadius,
           clock: { ...defaults.settings.clock, ...parsed.settings?.clock },
+          clockTools: { ...defaults.settings.clockTools, ...parsed.settings?.clockTools },
           calendar: { ...defaults.settings.calendar, ...parsed.settings?.calendar },
           note: normalizeNotes(parsed.settings?.note ?? defaults.settings.note),
           // Merge per widget so fields added later (such as size) keep their defaults.
@@ -314,4 +316,17 @@ async function flushNativeNote(): Promise<void> {
       }).then((stop) => { unlisten = stop; return emitTo("note", "vela://note-flush", { requestId }); }).catch(reject);
     });
   } finally { if (timer) clearTimeout(timer); unlisten?.(); }
+}
+
+export async function clockAction(input: import("../types").ClockAction): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("clock_action", { id: null, seconds: null, mode: null, alarm: null, ...input });
+  const next=updatePreview(s => applyClockAction(s.settings.clockTools,input));
+  window.dispatchEvent(new CustomEvent("vela:clock-updated", { detail: next }));
+  return next;
+}
+export function tickPreviewClock(): void {
+  const next=readPreview();
+  if(tickClockTools(next.settings.clockTools)) {
+    writePreview(next); window.dispatchEvent(new CustomEvent("vela:clock-updated", { detail: next }));
+  }
 }

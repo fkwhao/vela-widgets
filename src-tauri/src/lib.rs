@@ -11,6 +11,7 @@ use tauri::{
 #[cfg(target_os = "windows")]
 mod native_surface;
 
+mod clock_tools;
 mod extras;
 mod holidays;
 use extras::{ClockSettings, CountdownItem, NoteSettings};
@@ -121,6 +122,8 @@ pub struct Settings {
     #[serde(default)]
     pub clock: ClockSettings,
     #[serde(default)]
+    pub clock_tools: clock_tools::ClockTools,
+    #[serde(default)]
     pub note: NoteSettings,
     pub widgets: HashMap<String, WidgetSettings>,
 }
@@ -165,6 +168,7 @@ impl Default for Settings {
         }
         Self {
             clock: ClockSettings::default(),
+            clock_tools: clock_tools::ClockTools::default(),
             note: NoteSettings::default(),
             theme: "light".to_string(),
             accent_color: "#3b67b8".to_string(),
@@ -609,7 +613,9 @@ async fn show_context_menu(
         .ok_or_else(|| "组件窗口尚未准备好。".to_string())?;
     let scale = widget.scale_factor().map_err(|error| error.to_string())?;
     let widget_position = widget.outer_position().map_err(|error| error.to_string())?;
-    let menu_height = if kind == "note" {
+    let menu_height = if kind == "clock" {
+        CONTEXT_MENU_HEIGHT + 132.0
+    } else if kind == "note" {
         CONTEXT_MENU_HEIGHT + 108.0
     } else if kind == "todo" {
         TODO_CONTEXT_MENU_HEIGHT
@@ -1087,6 +1093,7 @@ pub fn run() {
             }
             extras::start_note_expiry_worker(app.handle().clone());
             holidays::start_update_worker(app.handle().clone());
+            clock_tools::start_worker(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -1134,6 +1141,13 @@ pub fn run() {
                     }
                 }
             }
+            if window.label() == "clock-reminder" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    clock_tools::dismiss_all(window.app_handle());
+                    let _ = window.hide();
+                }
+            }
             if window.label() == "manager" {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
@@ -1179,6 +1193,7 @@ pub fn run() {
             holidays::set_calendar_settings,
             holidays::check_holiday_updates,
             extras::set_clock_settings,
+            clock_tools::clock_action,
             extras::save_note,
             extras::create_note,
             extras::select_note,

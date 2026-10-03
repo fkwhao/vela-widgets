@@ -90,3 +90,5 @@ export async function setNoteDefaultExpiry(hours: number | null): Promise<void> 
 export async function setNoteColor(color: string): Promise<void> { applySnapshot(await backend.setNoteColor(color)); }
 export async function saveCountdown(item: Parameters<typeof backend.saveCountdown>[0]): Promise<void> { applySnapshot(await backend.saveCountdown(item)); }
 export async function deleteCountdown(id: number): Promise<void> { applySnapshot(await backend.deleteCountdown(id)); }
+
+export async function clockAction(input: import("../types").ClockAction): Promise<void> { applySnapshot(await backend.clockAction(input)); }

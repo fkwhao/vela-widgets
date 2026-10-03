@@ -14,7 +14,9 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <template v-if="name === 'trash'"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" /></template>
+    <template v-if="name === 'alarm'"><circle cx="12" cy="13" r="7.5" /><path d="M12 9v4l3 2M4 3 1.5 6M20 3l2.5 3M6 20l-1 2M18 20l1 2" /></template>
+    <template v-else-if="name === 'stopwatch'"><circle cx="12" cy="14" r="7.5" /><path d="M9 2h6M12 2v4M18 7l2-2M12 10v4l3-2" /></template>
+    <template v-else-if="name === 'trash'"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" /></template>
     <template v-else-if="name === 'note'">
       <path d="M5 3.5h14a1.5 1.5 0 0 1 1.5 1.5v10L15 20.5H5A1.5 1.5 0 0 1 3.5 19V5A1.5 1.5 0 0 1 5 3.5Z" /><path d="M15 20.5V15h5.5M7.5 8h9M7.5 12h6" />
     </template>

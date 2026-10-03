@@ -656,3 +656,107 @@
 .todo-page-list[data-direction="up"] { --todo-page-from: -8px; }
 @keyframes todo-page-in { from { opacity: .35; transform: translateY(var(--todo-page-from, 8px)); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .todo-page-list { animation: none; } }
+
+/* Four clock modes share one persistent desktop surface. */
+.clock-mode-header { display:flex; align-items:center; justify-content:space-between; flex:none; height:25px; margin-bottom:7px; gap:8px; }
+.clock-mode-tabs { display:flex; gap:7px; }
+.clock-mode-tabs .widget-icon-button { width:26px; height:25px; }
+.clock-mode-tabs .selected { color:var(--wg-accent-text); background:var(--wg-fill); }
+.clock-mode-picker { display:flex; align-items:center; gap:5px; padding:2px 0; border:0; background:transparent; color:var(--wg-accent-text); font-size:12px; font-weight:600; }
+.clock-running-dot { width:5px; height:5px; border-radius:50%; background:var(--wg-accent-text); margin-left:auto; }
+.clock-mode-menu { position:absolute; z-index:30; inset:38px 10px auto; padding:4px; border:1px solid var(--wg-stroke); border-radius:9px; background:rgba(var(--wg-tint),.98); box-shadow:0 8px 20px #0003; }
+.clock-mode-menu button { display:flex; gap:8px; width:100%; height:26px; align-items:center; border:0; border-radius:5px; color:var(--wg-text); background:transparent; font-size:11px; }
+.clock-mode-menu button:hover { background:var(--wg-fill); }
+.clock-display { display:flex; flex-direction:column; flex:1; min-height:0; }
+.clock-window.size-small .clock-time { font-size:40px; }
+.clock-window.size-small .clock-time.with-seconds { font-size:28px; }
+.clock-window.size-small .clock-time.hour-12 { font-size:29px; }
+.clock-window.size-small .clock-time.hour-12.with-seconds { font-size:22px; }
+.clock-window.size-large .clock-face { width:148px; height:148px; }
+.clock-window.size-large .clock-hand.minute { height:51px; }
+.clock-window.size-large .clock-hand.second { height:57px; }
+.clock-tools-panel { display:flex; position:relative; flex:1; min-height:0; min-width:0; flex-direction:column; gap:8px; color:var(--wg-text); }
+.clock-counter { display:flex; align-items:center; flex-direction:column; justify-content:center; flex:1; gap:3px; min-height:0; }
+.clock-counter strong { font-size:38px; font-weight:300; letter-spacing:-.035em; line-height:1.25; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.clock-tool-actions { display:flex; justify-content:center; flex:none; gap:6px; }
+.clock-tool-button { min-height:25px; border:1px solid var(--wg-stroke); border-radius:6px; background:var(--wg-fill); color:var(--wg-text); padding:3px 9px; font-size:11px; cursor:pointer; }
+.clock-tool-button.primary { background:var(--wg-accent-text); border-color:transparent; color:var(--wg-tint-text,#fff); }
+.clock-tool-button:hover { filter:brightness(1.1); }
+.clock-tool-button:disabled { opacity:.4; cursor:default; }
+.clock-tools-panel button:focus-visible,.clock-mode-header button:focus-visible { outline:2px solid var(--wg-accent-text);outline-offset:2px; }
+.clock-tools-panel.tools-small { gap:5px; }
+.tools-small .clock-counter strong { font-size:24px; }
+.tools-small .clock-counter .extra-eyebrow { font-size:10px; }
+.tools-small .clock-tool-button { font-size:10px; padding:3px 6px; min-height:23px; }
+.tools-small .extra-muted { font-size:9px; text-align:center; }
+.tools-large .clock-counter { flex:0 0 115px; }
+.tools-large .clock-counter strong { font-size:44px; }
+.timer-counter::after { content:""; display:block; height:3px; width:80%; max-width:200px; margin-top:5px; background:linear-gradient(to right,var(--wg-accent-text) var(--timer-progress),var(--wg-divider) var(--timer-progress)); border-radius:3px; }
+.clock-timer-presets { display:flex; justify-content:center; gap:5px; }
+.tools-medium .clock-counter strong { font-size:30px; }
+.tools-medium .clock-counter { align-items:flex-start; }
+.tools-medium .clock-tool-actions,.tools-medium .clock-timer-presets { position:absolute; right:0; width:145px; }
+.tools-medium .clock-tool-actions { top:24px; }
+.tools-medium .clock-timer-presets { bottom:2px; flex-wrap:wrap; }
+.tools-medium .clock-timer-presets button { font-size:10px; padding:2px 5px; }
+.tools-medium .timer-counter::after { width:130px; }
+.clock-laps { flex:1; min-height:0; overflow:auto; border-top:1px solid var(--wg-divider); padding-top:8px; font-variant-numeric:tabular-nums; }
+.clock-laps>div { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:6px 0; font-size:11px; color:var(--wg-text-2); }
+.clock-laps strong { text-align:right; font-weight:500; color:var(--wg-text); }
+.clock-alarm-heading { display:flex; align-items:center; justify-content:space-between; flex:none; }
+.clock-alarm-heading .widget-icon-button { width:22px;height:22px; }
+.clock-alarm-list { overflow:auto; flex:1; min-height:0; }
+.clock-alarm-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--wg-divider); }
+.clock-alarm-edit { display:flex; flex:1; min-width:0; flex-direction:column; align-items:flex-start; gap:2px; border:0; background:transparent; color:var(--wg-text); text-align:left; padding:0; }
+.clock-alarm-edit strong { font-size:26px; font-weight:350; font-variant-numeric:tabular-nums; line-height:1.1; }
+.clock-alarm-edit span,.clock-alarm-edit small { font-size:10px; color:var(--wg-text-2); overflow:hidden; max-width:100%; text-overflow:ellipsis; white-space:nowrap; }
+.clock-alarm-toggle { width:29px;height:16px; flex:none; border-radius:9px; padding:2px; border:1px solid var(--wg-text-3); background:transparent; }
+.clock-alarm-toggle i { display:block; width:10px;height:10px;border-radius:50%;background:var(--wg-text-2); }
+.clock-alarm-toggle.on { background:var(--wg-accent-text);border-color:transparent; }
+.clock-alarm-toggle.on i { background:#fff;transform:translateX(12px); }
+.tools-small .clock-alarm-row { padding:3px 0;border-bottom:0; }
+.tools-small .clock-alarm-edit strong { font-size:28px; }
+.clock-tool-editor { position:absolute; z-index:20; inset:0; display:flex; flex-direction:column; gap:10px; padding:6px; overflow:auto; background:rgba(var(--wg-tint),.99); border-radius:8px; }
+.clock-tool-editor>strong { font-size:13px; }
+.clock-tool-editor label { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--wg-text-2); font-size:11px; }
+.clock-tool-editor input { min-width:0; width:70%; color:var(--wg-text); background:var(--wg-fill); border:1px solid var(--wg-stroke); border-radius:5px; padding:5px; font:inherit; color-scheme:light dark; }
+.clock-duration-fields { display:flex; gap:5px; }
+.clock-duration-fields label { display:flex; flex-direction:column; width:33%;gap:3px; }
+.clock-duration-fields input { width:100%; }
+.clock-weekdays { display:flex; gap:3px; margin-top:5px; }
+.clock-weekdays button { flex:1; padding:4px 0; border:1px solid var(--wg-stroke); border-radius:4px; color:var(--wg-text-2); background:var(--wg-fill); font-size:10px; }
+.clock-weekdays button.selected { background:var(--wg-accent-text);color:#fff; }
+.clock-tool-error { color:var(--wg-danger);font-size:11px;margin:0; }
+.clock-delete-confirm { position:absolute; z-index:25; inset:0; display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:8px; padding:8px; border-radius:8px;background:rgba(var(--wg-tint),.99);font-size:12px; }
+.clock-delete-confirm p { width:100%;text-align:center; }
+.clock-management { --wg-text:var(--win-text); --wg-text-2:var(--win-text-2); --wg-text-3:var(--win-text-3); --wg-accent-text:var(--accent); --wg-fill:var(--win-control); --wg-stroke:var(--win-control-stroke); --wg-divider:var(--win-divider); --wg-danger:var(--win-danger); --wg-tint:255,255,255; }
+:root[data-theme="dark"] .clock-management { --wg-tint:44,44,44; }
+.clock-management.clock-tools-panel { min-height:300px; }
+.clock-management .clock-tool-editor { position:relative; min-height:300px; }
+.clock-manager-tabs { display:flex; flex-wrap:wrap; gap:8px; }
+.clock-manager-tabs button { display:flex; align-items:center;gap:6px; }
+.clock-reminder { display:flex; min-height:100vh; align-items:center; justify-content:center; flex-direction:column; gap:10px; padding:20px; background:var(--win-bg); color:var(--win-text); --wg-text:var(--win-text); --wg-accent-text:var(--accent); --wg-fill:var(--win-control); --wg-stroke:var(--win-control-stroke); }
+.clock-reminder h1 { font-size:24px;font-weight:550;margin:0;max-width:100%;overflow-wrap:anywhere; }
+.clock-reminder p { font-size:12px;color:var(--win-text-2);margin:0; }
+.clock-reminder .extra-eyebrow { color:var(--accent); }
+.floating-reminder { position:fixed; z-index:100; right:16px;bottom:16px;width:340px;min-height:0;border:1px solid var(--win-card-stroke);border-radius:12px;box-shadow:0 16px 40px #0004; }
+@media(prefers-reduced-motion:no-preference) { .clock-display,.clock-tools-panel { animation:clock-mode-enter .18s ease-out; } @keyframes clock-mode-enter { from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none} } }
+
+:root[data-theme="dark"] .clock-window .clock-tool-button.primary,
+:root[data-theme="dark"] .clock-window .clock-weekdays button.selected { color:#18212f; }
+.clock-tools-panel.tools-medium .extra-muted { position:absolute; bottom:0; left:0; }
+
+.clock-tool-editor,.clock-laps,.clock-alarm-list { scrollbar-width:thin;scrollbar-color:var(--wg-text-3) transparent; }
+@supports selector(::-webkit-scrollbar) { .clock-tool-editor,.clock-laps,.clock-alarm-list { scrollbar-width:auto;scrollbar-color:auto; } }
+.clock-tool-editor::-webkit-scrollbar,.clock-laps::-webkit-scrollbar,.clock-alarm-list::-webkit-scrollbar { width:4px; }
+.clock-tool-editor::-webkit-scrollbar-track,.clock-laps::-webkit-scrollbar-track,.clock-alarm-list::-webkit-scrollbar-track { background:transparent; }
+.clock-tool-editor::-webkit-scrollbar-thumb,.clock-laps::-webkit-scrollbar-thumb,.clock-alarm-list::-webkit-scrollbar-thumb { background:var(--wg-text-3);border-radius:4px; }
+.tools-small .clock-timer-editor { gap:7px; }
+.tools-small .clock-timer-editor>strong,.tools-small .clock-timer-editor>.extra-muted { display:none; }
+
+.tools-medium .clock-timer-presets { display:grid;grid-template-columns:1fr 1fr;gap:4px; }
+.tools-medium .clock-tool-actions { top:16px; }
+
+.clock-manager-tabs .selected { color:var(--win-text);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--win-control));box-shadow:inset 0 -2px var(--accent); }
+.clock-management.tool-mode-alarm { min-height:0; }
+.clock-management .clock-alarm-list { max-height:360px; }

@@ -20,6 +20,14 @@ export interface WidgetSettings {
   size: WidgetSize;
 }
 
+export type ClockMode = "clock" | "alarm" | "stopwatch" | "timer";
+export interface Alarm { id: number; label: string; time: string; date: string | null; weekdays: number[]; enabled: boolean; nextAt: number | null; snoozeAt: number | null }
+export interface AlarmInput { id: number | null; label: string; time: string; date: string | null; weekdays: number[] }
+export interface ClockAlert { id: number; alarmId: number | null; label: string; firedAt: number; missed: boolean }
+export interface ClockTools { mode: ClockMode; alarms: Alarm[]; timer: { durationSeconds: number; remainingMs: number; deadline: number | null }; stopwatch: { elapsedMs: number; startedAt: number | null; laps: number[] }; alerts: ClockAlert[] }
+export interface ClockAction { action: string; id?: number; seconds?: number; mode?: ClockMode; alarm?: AlarmInput }
+export const clockModes: { value: ClockMode; label: string; icon: string }[] = [{ value: "clock", label: "时钟", icon: "clock" }, { value: "alarm", label: "闹钟", icon: "alarm" }, { value: "stopwatch", label: "秒表", icon: "stopwatch" }, { value: "timer", label: "计时器", icon: "hourglass" }];
+export const defaultClockTools: ClockTools = { mode: "clock", alarms: [], timer: { durationSeconds: 300, remainingMs: 300000, deadline: null }, stopwatch: { elapsedMs: 0, startedAt: null, laps: [] }, alerts: [] };
 export interface ClockCity { name: string; timeZone: string }
 export interface CalendarSettings { showHolidays: boolean; showWorkdays: boolean; autoUpdate: boolean }
 export interface HolidayDay { date: string; name: string; type: "holiday" | "workday" }
@@ -34,7 +42,7 @@ export interface CountdownItem { id: number; title: string; date: string; yearly
 export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; description: string; defaultSize: WidgetSize; sizes: WidgetSize[] }> = {
   calendar: { label: "日历", icon: "calendar", description: "在桌面上查看日期与月历", defaultSize: "large", sizes: ["small", "medium", "large"] },
   todo: { label: "待办", icon: "check", description: "记录要做的事，完成后随手勾选", defaultSize: "medium", sizes: ["small", "medium", "large"] },
-  clock: { label: "时钟", icon: "clock", description: "此刻的时间，以及远方城市的昼夜", defaultSize: "small", sizes: ["small", "medium", "large"] },
+  clock: { label: "时钟", icon: "clock", description: "查看时间，管理闹钟、秒表和计时器", defaultSize: "small", sizes: ["small", "medium", "large"] },
   note: { label: "便签", icon: "note", description: "随手写下想法，自动保存在本机", defaultSize: "medium", sizes: ["small", "medium", "large"] },
   countdown: { label: "倒数日", icon: "hourglass", description: "记住值得期待与纪念的日子", defaultSize: "small", sizes: ["small", "medium", "large"] },
 };
@@ -49,6 +57,7 @@ export interface Settings {
   weekStartsMonday: boolean;
   calendar: CalendarSettings;
   clock: ClockSettings;
+  clockTools: ClockTools;
   note: NoteSettings;
   widgets: Record<WidgetKind, WidgetSettings>;
 }
@@ -77,6 +86,7 @@ export const defaultSnapshot: AppSnapshot = {
     weekStartsMonday: true,
     calendar: { showHolidays: true, showWorkdays: true, autoUpdate: false },
     clock: { hour12: false, showSeconds: false, cities: [] },
+    clockTools: structuredClone(defaultClockTools),
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
     widgets: {
       clock: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },

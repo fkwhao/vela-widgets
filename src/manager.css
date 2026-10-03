@@ -393,3 +393,5 @@
 .note-retention-confirm { margin-left: 34px; padding: 12px; border-radius: 6px; background: var(--win-subtle-hover); }
 .note-retention-confirm p { margin: 0 0 10px; font-size: 12px; }
 .note-retention-confirm button + button { margin-left: 8px; }
+
+.clock-tools-heading { display: flex; align-items: center; gap: 6px; }
