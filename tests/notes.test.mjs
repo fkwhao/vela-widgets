@@ -11,8 +11,8 @@ async function sourceModule(path) {
   output = output.replace(/from "([^".][^"]*)"/g, (_, name) => `from "${pathToFileURL(require.resolve(name)).href}"`);
   return import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 }
-const { normalizeNotes, nextNoteId } = await sourceModule("../src/lib/notes.ts");
-const { markdown, noteTitle } = await sourceModule("../src/lib/markdown.ts");
+const { normalizeNotes, nextNoteId } = await sourceModule("../src/features/notes/notes.ts");
+const { markdown, noteTitle } = await sourceModule("../src/features/notes/markdown.ts");
 test("legacy notes migrate without losing content or color", () => {
   const settings = normalizeNotes({ text: "# 工作\n旧内容", color: "#12abcd" }, 1000);
   assert.equal(settings.notes.length, 1); assert.equal(settings.notes[0].createdAt, 1000);

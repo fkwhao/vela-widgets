@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-const source = readFileSync(new URL("../src/lib/holidays.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/features/calendar/holidays.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { validateHolidayData, fetchHolidayUpdate, mergeHolidayData, normalizeHolidayCache, visibleHoliday, holidayUpdateDue, isCalendarRestDay } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const bundled = JSON.parse(readFileSync(new URL("../data/holidays/china.json", import.meta.url), "utf8"));

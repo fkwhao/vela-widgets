@@ -8,14 +8,13 @@ use tauri::{
     Emitter, Manager, PhysicalPosition, PhysicalSize, State, WebviewUrl, WindowEvent,
 };
 
-#[cfg(target_os = "windows")]
-mod native_surface;
+mod features;
+mod platform;
 
-mod clock_tools;
-mod extras;
-mod habits;
-mod holidays;
 use extras::{ClockSettings, CountdownItem, NoteSettings};
+use features::{clock_tools, extras, habits, holidays};
+#[cfg(target_os = "windows")]
+use platform::native_surface;
 const WIDGET_KINDS: [&str; 6] = ["calendar", "todo", "clock", "note", "countdown", "habit"];
 struct WidgetDefinition {
     kind: &'static str,

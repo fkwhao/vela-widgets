@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-const source = readFileSync(new URL("../src/lib/countdown.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/features/countdown/countdown.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { countdownInfo, sortedCountdowns } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const event = (overrides = {}) => ({ id: 1, title: "生日", date: "2024-02-29", yearly: true, countUp: false, createdDate: "2024-01-01", ...overrides });

@@ -32,3 +32,6 @@ src-tauri/gen/
 .DS_Store
 Thumbs.db
 *.iml
+
+# Local product design documents
+/产品设计/

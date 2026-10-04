@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-const source = readFileSync(new URL('../src/lib/habits.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/features/habits/habits.ts', import.meta.url), 'utf8');
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { annualWeeklyCheckins, dateKey, shiftDate, validDate, selectedHabits, todayHabits, nextIncomplete, habitStats, isComplete, weekDates, monthDates, parseHabitResult, validateHabit, validateRecord, cardForeground, tickHabitReminders } = await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 const habit = (overrides = {}) => ({ id: 1, title: '喝水', encouragement: '', icon: '💧', color: '#444fb0', startDate: '2026-10-01', weekdays: [0,1,2,3,4,5,6], dailyTarget: 3, goalDays: null, archived: false, sortOrder: 0, trackMood: false, trackRating: false, trackResult: false, ...overrides });

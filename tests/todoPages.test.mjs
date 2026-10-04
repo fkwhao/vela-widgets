@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-const source = readFileSync(new URL("../src/lib/todoPages.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/features/todos/todoPages.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { paginateTodos } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const items = Array.from({length: 11}, (_,i) => ({id:i+1, title:`任务 ${i+1}`, dueDate: null, completed:false, createdAt:""}));

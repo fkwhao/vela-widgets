@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-const source=readFileSync(new URL('../src/lib/calendarEvents.ts',import.meta.url),'utf8');
+const source=readFileSync(new URL('../src/features/calendar/calendarEvents.ts',import.meta.url),'utf8');
 const output=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const {validateCalendarEvent,eventsForDay,timelineEvents,upcomingEntries}=await import(`data:text/javascript;base64,${Buffer.from(output).toString('base64')}`);
 const event={id:1,title:'讨论',date:'2026-10-03',endDate:'2026-10-03',allDay:false,startTime:'09:00',endTime:'10:00',location:'',color:'#3b67b8'};

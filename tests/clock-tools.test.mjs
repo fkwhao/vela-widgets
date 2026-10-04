@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-const source=readFileSync(new URL("../src/lib/clockTools.ts",import.meta.url),"utf8");
+const source=readFileSync(new URL("../src/features/clock/clockTools.ts",import.meta.url),"utf8");
 const output=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const {applyClockAction,tickClockTools,nextAlarm,stopwatchElapsed,timerRemaining,durationLabel}=await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const initial=()=>({mode:"clock",alarms:[],timer:{durationSeconds:300,remainingMs:300000,deadline:null},stopwatch:{elapsedMs:0,startedAt:null,laps:[]},alerts:[]});

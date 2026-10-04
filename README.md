@@ -25,7 +25,6 @@ The visual system in this first slice is a starting point, not a fixed design st
 
 ## Run
 
-Component progress and interface requirements are recorded in [组件清单](产品设计/组件清单.md) and [界面设计规范](产品设计/界面设计规范.md).
 
 ```powershell
 npm install
@@ -53,6 +52,40 @@ npm run dev
 ```
 
 The Tauri build uses the installed Microsoft Edge WebView2 runtime. The first build downloads Rust and JavaScript dependencies if they are not already cached. The debug-only data path and manager preview switches are ignored by release builds.
+
+## Project structure
+
+Frontend code is grouped by feature rather than by file type:
+
+```text
+src/
+  main.ts                   Application bootstrap
+  app/                      Root view and shared application state
+  features/
+    calendar/               Calendar widgets, editors and holiday logic
+    clock/                  Clock widgets, themes and clock tools
+    countdown/              Countdown widget and date calculations
+    habits/                 Habit widgets, management, reports and styles
+    notes/                  Notes, Markdown rendering and retention
+    todos/                  To-do widget and pagination
+  shared/
+    ui/                     Reusable controls and icons
+    widgets/                Common widget frame, settings and previews
+    composables/            Shared Vue lifecycle helpers
+    styles/                 Global theme and shared widget styles
+    types.ts                Shared settings and snapshot contracts
+  views/                    Manager, context-menu and reminder windows
+  infrastructure/           Tauri commands and browser storage adapter
+src-tauri/src/
+  features/                 Native clock, habit, holiday and storage modules
+  platform/                 Windows-specific surface integration
+  lib.rs                    App setup, shared database and window coordination
+  main.rs                   Native executable entry
+```
+
+Keep feature-specific UI and pure logic together in `features/<name>`. Put controls shared by multiple features in `shared`; window-level composition belongs in `views`. Application state lives in `app`, while native communication and browser persistence stay in `infrastructure`. Shared snapshot contracts remain centralized because the frontend and native backend exchange one snapshot.
+
+Tests in `tests/` load pure logic from its feature directory. Holiday source data remains in `data/holidays/`; moving code must preserve its bundled data references. This layout change does not alter Tauri command names, window labels, database tables or stored settings.
 
 ## Validation
 
