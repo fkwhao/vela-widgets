@@ -10,6 +10,7 @@ import { isNativeApp } from "../../infrastructure/backend";
 import WidgetThemePreview from "../../shared/widgets/WidgetThemePreview.vue";
 import VelaSelect from "../../shared/ui/VelaSelect.vue";
 import VelaSlider from "../../shared/ui/VelaSlider.vue";
+import VelaColorPicker from "../../shared/ui/VelaColorPicker.vue";
 import { exitVela } from "../../infrastructure/backend";
 import {
   setAccentColor,
@@ -129,11 +130,6 @@ async function toggleWidget(kind: WidgetKind): Promise<void> {
 
 function onThemeChange(theme: ThemeMode): void {
   void run(() => setTheme(theme));
-}
-
-function onAccentChange(event: Event): void {
-  const color = (event.target as HTMLInputElement).value;
-  void run(() => setAccentColor(color));
 }
 
 function chooseAccentColor(color: string): void {
@@ -354,9 +350,7 @@ onUnmounted(() => {
                     :aria-pressed="snapshot.settings.accentColor.toLowerCase() === color"
                     @click="chooseAccentColor(color)"
                   ></button>
-                  <label class="accent-custom" data-tooltip="自定义强调色">
-                    <input type="color" :value="snapshot.settings.accentColor" aria-label="自定义强调色" @change="onAccentChange" />
-                  </label>
+                  <VelaColorPicker :model-value="snapshot.settings.accentColor" label="自定义强调色" @update:model-value="chooseAccentColor" />
                 </div>
               </div>
             </div>

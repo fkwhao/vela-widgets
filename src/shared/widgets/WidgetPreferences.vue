@@ -4,6 +4,7 @@ import ClockThemePreferences from "../../features/clock/components/ClockThemePre
 import ClockToolsPanel from "../../features/clock/components/ClockToolsPanel.vue";
 import { clockModes } from "../types";
 import AppIcon from "../ui/AppIcon.vue";
+import VelaColorPicker from "../ui/VelaColorPicker.vue";
 const NoteRetention = defineAsyncComponent(() => import("../../features/notes/components/NoteRetention.vue"));
 import { snapshot, setClockSettings, setNoteColor, saveCountdown, deleteCountdown } from "../../app/store";
 import { localDateKey } from "../../features/countdown/countdown";
@@ -31,7 +32,7 @@ const colors = [
   { value: "#399466", label: "绿色" },
 ];
 const isCustomNoteColor = computed(() => !colors.some(color => color.value === snapshot.value.settings.note.color.toLowerCase()));
-function onCustomNoteColor(event: Event) { const color = (event.target as HTMLInputElement).value; void run(() => setNoteColor(color)); }
+function onCustomNoteColor(color: string) { void run(() => setNoteColor(color)); }
 const selectedNoteColor = computed(() => colors.find(color => color.value === snapshot.value.settings.note.color.toLowerCase())?.label ?? "自定义");
 async function run(action: () => Promise<void>) { error.value = ""; busy.value = true; try { await action(); } catch(e) { error.value = typeof e === "string" ? e : "没有保存成功，请重试。"; } finally { busy.value = false; } }
 function toggleCity(city: typeof cities[number]) {
@@ -76,11 +77,7 @@ const deleting = ref<number | null>(null);
               <span class="note-color-dot" :style="{ backgroundColor: color.value }"><AppIcon v-if="snapshot.settings.note.color === color.value" name="tick" :size="15" /></span>
               <span>{{ color.label }}</span>
             </button>
-            <label class="note-color-option note-color-custom" :class="{ selected: isCustomNoteColor, 'is-busy': busy }" data-tooltip="打开调色盘">
-              <span class="note-color-dot note-color-rainbow"><AppIcon v-if="isCustomNoteColor" name="tick" :size="15" /></span>
-              <span>自定义</span>
-              <input type="color" :value="snapshot.settings.note.color" aria-label="自定义便签颜色" :disabled="busy" @change="onCustomNoteColor" />
-            </label>
+            <VelaColorPicker :model-value="snapshot.settings.note.color" variant="option" label="自定义便签颜色" :selected="isCustomNoteColor" :disabled="busy" @update:model-value="onCustomNoteColor" />
           </div>
           <div class="note-color-preview" :style="{ '--note-preview-color': snapshot.settings.note.color }" role="img" :aria-label="`${selectedNoteColor}便签标题预览`">
             <div class="note-color-preview-title"><AppIcon name="note" :size="16" /><strong>便签</strong><AppIcon class="note-preview-edit" name="edit" :size="13" /></div>
