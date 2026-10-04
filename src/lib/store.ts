@@ -94,3 +94,9 @@ export async function saveCountdown(item: Parameters<typeof backend.saveCountdow
 export async function deleteCountdown(id: number): Promise<void> { applySnapshot(await backend.deleteCountdown(id)); }
 
 export async function clockAction(input: import("../types").ClockAction): Promise<void> { applySnapshot(await backend.clockAction(input)); }
+
+export async function saveHabit(item: import("../types").HabitItem): Promise<void> { applySnapshot(await backend.saveHabit(item)); }
+export async function deleteHabit(id: number): Promise<void> { applySnapshot(await backend.deleteHabit(id)); }
+export async function adjustHabitRecord(input: import("../types").HabitRecordInput): Promise<void> { applySnapshot(await backend.adjustHabitRecord(input)); }
+export async function setHabitSettings(settings: import("../types").HabitSettings): Promise<void> { applySnapshot(await backend.setHabitSettings(settings)); }
+export async function reorderHabits(ids: number[]): Promise<void> { applySnapshot(await backend.reorderHabits(ids)); }

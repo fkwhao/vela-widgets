@@ -383,11 +383,15 @@ pub fn start_worker(app: AppHandle) {
     std::thread::spawn(move || {
         let mut first = true;
         let mut last_beep = 0;
+        let mut habit_minute = -1;
         loop {
             let now = now_ms();
             let state = app.state::<AppState>();
             let result = (|| -> Result<(bool, bool), String> {
-                let db = lock_database(state.inner())?;
+                let connection = lock_database(state.inner())?;
+                let db = connection
+                    .unchecked_transaction()
+                    .map_err(|e| e.to_string())?;
                 // Inspect clock deadlines without silently cleaning other widgets' data.
                 let document: String = db
                     .query_row("SELECT document FROM app_settings WHERE id=1", [], |row| {
@@ -396,7 +400,13 @@ pub fn start_worker(app: AppHandle) {
                     .map_err(|e| e.to_string())?;
                 let mut settings: Settings =
                     serde_json::from_str(&document).map_err(|e| e.to_string())?;
-                let changed = settings.clock_tools.tick(now);
+                let clock_changed = settings.clock_tools.tick(now);
+                let habit_changed = if now / 60000 != habit_minute {
+                    habits::tick_reminders(&db, &mut settings.clock_tools, now)?
+                } else {
+                    false
+                };
+                let changed = clock_changed || habit_changed;
                 if changed {
                     write_settings(&db, &settings).map_err(|e| e.to_string())?;
                 }
@@ -410,6 +420,8 @@ pub fn start_worker(app: AppHandle) {
                     let snapshot = read_snapshot(&db).map_err(|e| e.to_string())?;
                     let _ = app.emit(SNAPSHOT_UPDATED_EVENT, snapshot);
                 }
+                db.commit().map_err(|e| e.to_string())?;
+                habit_minute = now / 60000;
                 Ok((pending && (changed || first), audible))
             })();
             if let Ok((show, audible)) = result {

@@ -5,7 +5,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import AppIcon from "./AppIcon.vue";
 import WidgetSizeMenuRow from "./WidgetSizeMenuRow.vue";
 import { getSnapshot, openManager } from "../lib/backend";
-import { clockAction, refreshSnapshot, setCalendarSettings, snapshot, setWidgetEnabled, setWidgetLayer, setWidgetSize } from "../lib/store";
+import { clockAction, refreshSnapshot, setCalendarSettings, setHabitSettings, snapshot, setWidgetEnabled, setWidgetLayer, setWidgetSize } from "../lib/store";
 import { calendarStyles, clockModes, isWidgetKind, widgetRegistry, type WidgetKind, type WidgetSize } from "../types";
 
 const widgetKind = ref<WidgetKind>("calendar");
@@ -137,6 +137,7 @@ onUnmounted(() => {
         <div class="context-divider"></div>
       </template>
       <template v-if="widgetKind === 'calendar'"><button v-for="style in calendarStyles" :key="style.value" role="menuitem" @click="setCalendarSettings({...snapshot.settings.calendar,style:style.value}).then(dismissMenu)">{{ style.label }}</button><div class="context-divider"></div></template>
+      <template v-if="widgetKind === 'habit'"><button v-for="style in ([['card','习惯卡片'],['list','习惯列表'],['report','本周成绩单']] as const)" :key="style[0]" role="menuitem" @click="setHabitSettings({...snapshot.settings.habit,style:style[0]}).then(dismissMenu)">{{ style[1] }}{{ snapshot.settings.habit.style === style[0] ? ' ✓' : '' }}</button><div class="context-divider"></div></template>
       <template v-if="widgetKind === 'clock'"><button v-for="mode in clockModes" :key="mode.value" role="menuitem" @click="clockAction({action:'mode',mode:mode.value}).then(dismissMenu)"><AppIcon :name="mode.icon" :size="14" />{{ mode.label }}</button><div class="context-divider"></div></template>
       <template v-if="widgetKind === 'note'"><button class="context-primary" role="menuitem" @click="noteAction('new')"><AppIcon name="plus" :size="14" />新建便签</button><button role="menuitem" @click="noteAction('list')"><AppIcon name="note" :size="14" />便签列表</button><button class="context-danger" role="menuitem" @click="noteAction('delete')"><AppIcon name="trash" :size="14" />删除当前便签</button><div class="context-divider"></div></template>
       <button :class="{ 'context-primary': widgetKind !== 'todo' && widgetKind !== 'note' }" role="menuitem" @click="showPreferences">

@@ -9,7 +9,8 @@
     "context-menu",
     "clock",
     "note",
-    "countdown"
+    "countdown",
+    "habit"
   ],
   "permissions": [
     "core:default"

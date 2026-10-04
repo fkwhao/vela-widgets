@@ -1,5 +1,5 @@
 import bundledHolidays from "../data/holidays/china.json";
-export type WidgetKind = "calendar" | "todo" | "clock" | "note" | "countdown";
+export type WidgetKind = "calendar" | "todo" | "clock" | "note" | "countdown" | "habit";
 export type ThemeMode = "light" | "dark" | "system";
 export type WidgetSize = "small" | "medium" | "large";
 
@@ -44,7 +44,14 @@ export interface NoteItem { id: number; text: string; color: string; createdAt: 
 export interface NoteSettings { text: string; color: string; notes: NoteItem[]; activeId: number | null; defaultDeleteAfterHours: number | null }
 export interface CountdownItem { id: number; title: string; date: string; yearly: boolean; countUp: boolean; createdDate: string }
 
+export type HabitStyle = "card" | "list" | "report";
+export interface HabitSettings { style: HabitStyle; selectedIds: number[] | null }
+export interface HabitItem { id: number; title: string; encouragement: string; icon: string; color: string; startDate: string; weekdays: number[]; dailyTarget: number; goalDays: number | null; archived: boolean; sortOrder: number; trackMood: boolean; trackRating: boolean; trackResult: boolean; reminderTime: string | null; lastRemindedDate: string | null }
+export interface HabitRecord { habitId: number; date: string; count: number; target: number; updatedAt: string; mood: string | null; rating: number | null; result: number | null }
+export interface HabitRecordInput { habitId: number; date: string; delta: number; captureMetadata?: boolean; mood?: string | null; rating?: number | null; result?: number | null }
+
 export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; description: string; defaultSize: WidgetSize; sizes: WidgetSize[] }> = {
+  habit: { label: "习惯打卡", icon: "check", description: "坚持每日习惯，记录进度与成长", defaultSize: "small", sizes: ["small", "medium", "large"] },
   calendar: { label: "日历", icon: "calendar", description: "查看日期、月历与近期日程", defaultSize: "large", sizes: ["small", "medium", "large"] },
   todo: { label: "待办", icon: "check", description: "记录要做的事，完成后随手勾选", defaultSize: "medium", sizes: ["small", "medium", "large"] },
   clock: { label: "时钟", icon: "clock", description: "查看时间，管理闹钟、秒表和计时器", defaultSize: "small", sizes: ["small", "medium", "large"] },
@@ -64,6 +71,7 @@ export interface Settings {
   clock: ClockSettings;
   clockTools: ClockTools;
   note: NoteSettings;
+  habit: HabitSettings;
   widgets: Record<WidgetKind, WidgetSettings>;
 }
 
@@ -79,6 +87,8 @@ export interface AppSnapshot {
   settings: Settings;
   todos: TodoItem[];
   countdowns: CountdownItem[];
+  habits: HabitItem[];
+  habitRecords: HabitRecord[];
   holidays: HolidayCache;
 }
 
@@ -93,7 +103,9 @@ export const defaultSnapshot: AppSnapshot = {
     clock: { theme: "default", hour12: false, showSeconds: false, cities: [] },
     clockTools: structuredClone(defaultClockTools),
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
+    habit: { style: "card", selectedIds: null },
     widgets: {
+      habit: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       clock: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       note: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },
       countdown: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
@@ -121,5 +133,7 @@ export const defaultSnapshot: AppSnapshot = {
   },
   todos: [],
   countdowns: [],
+  habits: [],
+  habitRecords: [],
   holidays: { data: bundledHolidays as HolidayData, lastAttemptAt: null, lastCheckedAt: null, lastUpdatedAt: null, lastError: null },
 };

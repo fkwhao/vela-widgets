@@ -709,7 +709,8 @@ mod tests {
         let mut old = serde_json::to_value(Settings::default()).unwrap();
         old.as_object_mut().unwrap().remove("clock");
         old.as_object_mut().unwrap().remove("note");
-        for kind in ["clock", "note", "countdown"] {
+        old.as_object_mut().unwrap().remove("habit");
+        for kind in ["clock", "note", "countdown", "habit"] {
             old["widgets"].as_object_mut().unwrap().remove(kind);
         }
         old["widgets"]["calendar"]["x"] = serde_json::json!(123);
@@ -720,8 +721,11 @@ mod tests {
         .unwrap();
         let restored = read_settings(&db).unwrap();
         assert_eq!(restored.widgets["calendar"].x, Some(123.0));
-        assert_eq!(restored.widgets.len(), 5);
+        assert_eq!(restored.widgets.len(), WIDGET_KINDS.len());
         assert!(!restored.widgets["note"].enabled);
+        assert!(!restored.widgets["habit"].enabled);
+        assert_eq!(restored.habit.style, "card");
+        assert!(restored.habit.selected_ids.is_none());
     }
     #[test]
     fn countdown_and_note_survive_snapshot_reload() {

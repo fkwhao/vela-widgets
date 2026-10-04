@@ -11,6 +11,7 @@ import ClockWidget from "./components/ClockWidget.vue";
 const NoteWidget = defineAsyncComponent(() => import("./components/NoteWidget.vue"));
 import CountdownWidget from "./components/CountdownWidget.vue";
 import TodoWidget from "./components/TodoWidget.vue";
+import HabitWidget from "./components/HabitWidget.vue";
 import { openManager, checkHolidayUpdates } from "./lib/backend";
 import { applySnapshot, refreshSnapshot, snapshot } from "./lib/store";
 import { tickPreviewClock, isNativeApp } from "./lib/backend";
@@ -119,6 +120,7 @@ onUnmounted(() => {
   <ClockWidget v-else-if="view === 'clock'" />
   <NoteWidget v-else-if="view === 'note'" />
   <CountdownWidget v-else-if="view === 'countdown'" />
+  <HabitWidget v-else-if="view === 'habit'" />
   <ContextMenuWindow v-else-if="view === 'context-menu'" />
   <main v-else class="unknown-view">
     <p>找不到这个 Vela 窗口。</p>

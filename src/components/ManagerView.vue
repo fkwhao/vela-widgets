@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from "vue";
 const WidgetPreferences = defineAsyncComponent(() => import("./WidgetPreferences.vue"));
+const HabitPreferences = defineAsyncComponent(() => import("./HabitPreferences.vue"));
 const CalendarSchedulePreferences = defineAsyncComponent(() => import("./CalendarSchedulePreferences.vue"));
 const CalendarPreferences = defineAsyncComponent(() => import("./CalendarPreferences.vue"));
 import AppIcon from "./AppIcon.vue";
+import { listen } from "@tauri-apps/api/event";
+import { isNativeApp } from "../lib/backend";
 import WidgetThemePreview from "./WidgetThemePreview.vue";
 import VelaSelect from "./VelaSelect.vue";
 import VelaSlider from "./VelaSlider.vue";
@@ -25,7 +28,10 @@ import type { ThemeMode, WidgetKind } from "../types";
 
 const search = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
-const activePage = ref("home");
+const initialPage = new URLSearchParams(location.search).get('page');
+const activePage = ref(initialPage && isWidgetKind(initialPage) ? initialPage : "home");
+let unlistenNavigate: (() => void) | undefined;
+let disposed = false;
 const errorMessage = ref("");
 const transparencyDraft = ref(snapshot.value.settings.widgetTransparency);
 const cornerRadiusDraft = ref(snapshot.value.settings.widgetCornerRadius);
@@ -158,8 +164,13 @@ function toggleLocked(): void {
   if (kind) void run(() => setWidgetLocked(kind, !snapshot.value.settings.widgets[kind].locked));
 }
 
-onMounted(() => window.addEventListener("keydown", onGlobalKeydown));
+onMounted(() => {
+  window.addEventListener("keydown", onGlobalKeydown);
+  if (isNativeApp()) void listen<string>('vela://navigate', event => { if (isWidgetKind(event.payload)) activePage.value = event.payload; }).then(stop => { if (disposed) stop(); else unlistenNavigate = stop; });
+});
 onUnmounted(() => {
+  disposed = true;
+  unlistenNavigate?.();
   window.removeEventListener("keydown", onGlobalKeydown);
   if (errorTimer) clearTimeout(errorTimer);
 });
@@ -240,7 +251,7 @@ onUnmounted(() => {
           </template>
 
           <template v-else-if="settingKind && currentWidget">
-            <div class="settings-group">
+            <div v-if="settingKind !== 'habit'" class="settings-group">
               <div class="settings-card">
                 <AppIcon class="card-icon" name="grid" :size="18" />
                 <div class="card-text">
@@ -286,6 +297,7 @@ onUnmounted(() => {
             </div>
 
             <WidgetPreferences v-if="['clock', 'note', 'countdown'].includes(settingKind)" :key="settingKind" :kind="settingKind" />
+            <HabitPreferences v-if="settingKind === 'habit'" />
 
             <template v-if="settingKind === 'calendar'">
               <CalendarSchedulePreferences />

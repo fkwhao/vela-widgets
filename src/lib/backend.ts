@@ -3,10 +3,52 @@ import { invoke } from "@tauri-apps/api/core";
 import { applyClockAction, tickClockTools } from "./clockTools";
 import { normalizeNotes, nextNoteId } from "./notes";
 import { validateCalendarEvent } from "./calendarEvents";
+import { dateKey, tickHabitReminders, validateHabit, validateRecord } from "./habits";
+import type { HabitItem, HabitRecordInput, HabitSettings } from "../types";
 import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolidayCache } from "./holidays";
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../types";
 
 const previewKey = "vela.preview.snapshot.v1";
+
+export async function saveHabit(item: HabitItem): Promise<AppSnapshot> {
+  const error = validateHabit(item); if (error) throw error;
+  if (isNativeApp()) return invoke("save_habit", { item });
+  return updatePreview(s => {
+    const copy = { ...item, title: item.title.trim(), weekdays: [...item.weekdays], lastRemindedDate: item.id ? s.habits.find(h => h.id === item.id)?.lastRemindedDate ?? null : null };
+    if (item.id) { const index = s.habits.findIndex(h => h.id === item.id); if (index < 0) throw "找不到这个习惯。"; s.habits[index] = copy; }
+    else { const id = Math.max(0, ...s.habits.map(h => h.id)) + 1; s.habits.push({ ...copy, id, sortOrder: Math.max(-1, ...s.habits.map(h => h.sortOrder)) + 1 }); }
+  });
+}
+export async function deleteHabit(id: number): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("delete_habit", { id });
+  return updatePreview(s => { s.habits = s.habits.filter(h => h.id !== id); s.habitRecords = s.habitRecords.filter(r => r.habitId !== id); if (s.settings.habit.selectedIds) s.settings.habit.selectedIds = s.settings.habit.selectedIds.filter(i => i !== id); });
+}
+export async function reorderHabits(ids: number[]): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("reorder_habits", { ids });
+  return updatePreview(s => { if (new Set(ids).size !== s.habits.length || ids.length !== s.habits.length || ids.some(id => !s.habits.some(h => h.id === id))) throw "习惯列表已变化，请重试。"; ids.forEach((id, i) => { s.habits.find(h => h.id === id)!.sortOrder = i; }); });
+}
+export async function setHabitSettings(settings: HabitSettings): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("set_habit_settings", { settings });
+  return updatePreview(s => { if (!["card", "list", "report"].includes(settings.style) || (settings.selectedIds !== null && settings.selectedIds.some(id => !s.habits.some(h => h.id === id)))) throw "无效的组件设置。"; s.settings.habit = { style: settings.style, selectedIds: settings.selectedIds === null ? null : [...settings.selectedIds] }; });
+}
+export async function adjustHabitRecord(input: HabitRecordInput): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke("adjust_habit_record", { input });
+  return updatePreview(s => {
+    const habit = s.habits.find(h => h.id === input.habitId);
+    let record = s.habitRecords.find(r => r.habitId === input.habitId && r.date === input.date);
+    const error = validateRecord(habit, input, dateKey(), !!record); if (error) throw error;
+    if (!record && input.delta <= 0) return;
+    if (!record) { record = { habitId: input.habitId, date: input.date, count: 0, target: habit!.dailyTarget, updatedAt: "", mood: null, rating: null, result: null }; s.habitRecords.push(record); }
+    record.count = Math.max(0, Math.min(record.target, record.count + input.delta));
+    if (input.delta === 0 || input.captureMetadata) {
+      record.mood = input.mood ?? null;
+      record.rating = input.rating ?? null;
+      record.result = input.result ?? null;
+    }
+    record.updatedAt = new Date().toISOString();
+    if (!record.count) s.habitRecords = s.habitRecords.filter(r => r !== record);
+  });
+}
 
 export function isNativeApp(): boolean {
   return typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
@@ -30,11 +72,14 @@ function readPreview(): AppSnapshot {
           clockTools: { ...defaults.settings.clockTools, ...parsed.settings?.clockTools },
           calendar: { ...defaults.settings.calendar, ...parsed.settings?.calendar },
           note: normalizeNotes(parsed.settings?.note ?? defaults.settings.note),
+          habit: { ...defaults.settings.habit, ...parsed.settings?.habit },
           // Merge per widget so fields added later (such as size) keep their defaults.
           widgets: Object.fromEntries(widgetKinds.map((kind) => [kind, { ...defaults.settings.widgets[kind], ...parsed.settings?.widgets?.[kind] }])) as AppSnapshot["settings"]["widgets"],
         },
         todos: Array.isArray(parsed.todos) ? parsed.todos : defaults.todos,
         countdowns: Array.isArray(parsed.countdowns) ? parsed.countdowns : [],
+        habits: Array.isArray(parsed.habits) ? parsed.habits.map(h => ({ ...h, reminderTime: h.reminderTime ?? null, lastRemindedDate: h.lastRemindedDate ?? null })) : [],
+        habitRecords: Array.isArray(parsed.habitRecords) ? parsed.habitRecords : [],
         holidays: normalizeHolidayCache(parsed.holidays, defaults.holidays.data),
       };
       if (JSON.stringify(next) !== stored) writePreview(next);
@@ -183,12 +228,13 @@ export async function deleteTodo(id: number): Promise<AppSnapshot> {
   });
 }
 
-export async function openManager(): Promise<void> {
+export async function openManager(page?: string): Promise<void> {
   if (isNativeApp()) {
     await invoke("show_manager");
+    if (typeof page === "string") await emitTo("manager", "vela://navigate", page);
     return;
   }
-  window.location.search = "?view=manager";
+  window.location.search = `?view=manager${typeof page === "string" ? `&page=${encodeURIComponent(page)}` : ''}`;
 }
 
 export async function showWidgetContextMenu(
@@ -342,7 +388,9 @@ export async function clockAction(input: import("../types").ClockAction): Promis
 }
 export function tickPreviewClock(): void {
   const next=readPreview();
-  if(tickClockTools(next.settings.clockTools)) {
+  const clockChanged = tickClockTools(next.settings.clockTools);
+  const habitChanged = tickHabitReminders(next.habits, next.habitRecords, next.settings.clockTools);
+  if(clockChanged || habitChanged) {
     writePreview(next); window.dispatchEvent(new CustomEvent("vela:clock-updated", { detail: next }));
   }
 }

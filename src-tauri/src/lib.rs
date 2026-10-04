@@ -13,15 +13,21 @@ mod native_surface;
 
 mod clock_tools;
 mod extras;
+mod habits;
 mod holidays;
 use extras::{ClockSettings, CountdownItem, NoteSettings};
-const WIDGET_KINDS: [&str; 5] = ["calendar", "todo", "clock", "note", "countdown"];
+const WIDGET_KINDS: [&str; 6] = ["calendar", "todo", "clock", "note", "countdown", "habit"];
 struct WidgetDefinition {
     kind: &'static str,
     title: &'static str,
     default_size: &'static str,
 }
-const WIDGET_REGISTRY: [WidgetDefinition; 5] = [
+const WIDGET_REGISTRY: [WidgetDefinition; 6] = [
+    WidgetDefinition {
+        kind: "habit",
+        title: "习惯打卡",
+        default_size: "small",
+    },
     WidgetDefinition {
         kind: "calendar",
         title: "日历",
@@ -126,6 +132,8 @@ pub struct Settings {
     pub clock_tools: clock_tools::ClockTools,
     #[serde(default)]
     pub note: NoteSettings,
+    #[serde(default)]
+    pub habit: habits::HabitSettings,
     pub widgets: HashMap<String, WidgetSettings>,
 }
 
@@ -145,6 +153,8 @@ pub struct AppSnapshot {
     pub settings: Settings,
     pub todos: Vec<TodoItem>,
     pub countdowns: Vec<CountdownItem>,
+    pub habits: Vec<habits::HabitItem>,
+    pub habit_records: Vec<habits::HabitRecord>,
     pub holidays: holidays::HolidayCache,
 }
 
@@ -171,6 +181,7 @@ impl Default for Settings {
             clock: ClockSettings::default(),
             clock_tools: clock_tools::ClockTools::default(),
             note: NoteSettings::default(),
+            habit: habits::HabitSettings::default(),
             theme: "light".to_string(),
             accent_color: "#3b67b8".to_string(),
             widget_transparency: default_widget_transparency(),
@@ -241,6 +252,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
     extras::initialize(connection)?;
+    habits::initialize(connection)?;
     holidays::initialize(connection)?;
     Ok(())
 }
@@ -311,6 +323,8 @@ fn read_snapshot(connection: &Connection) -> rusqlite::Result<AppSnapshot> {
         settings: read_settings(connection)?,
         todos: read_todos(connection)?,
         countdowns: extras::read_countdowns(connection)?,
+        habits: habits::read_habits(connection)?,
+        habit_records: habits::read_records(connection)?,
         holidays: holidays::read_cache(connection)?,
     })
 }
@@ -616,7 +630,7 @@ async fn show_context_menu(
     let widget_position = widget.outer_position().map_err(|error| error.to_string())?;
     let extra_items = match kind.as_str() {
         "clock" => 4,
-        "calendar" | "note" => 3,
+        "calendar" | "note" | "habit" => 3,
         "todo" => 1,
         _ => 0,
     };
@@ -1212,6 +1226,11 @@ pub fn run() {
             extras::set_note_color,
             extras::save_countdown,
             extras::delete_countdown,
+            habits::save_habit,
+            habits::delete_habit,
+            habits::adjust_habit_record,
+            habits::set_habit_settings,
+            habits::reorder_habits,
             get_snapshot,
             get_context_menu_widget,
             show_manager,
