@@ -10,7 +10,8 @@
     "clock",
     "note",
     "countdown",
-    "habit"
+    "habit",
+    "media"
   ],
   "permissions": [
     "core:default"

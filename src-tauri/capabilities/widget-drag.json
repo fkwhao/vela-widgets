@@ -8,7 +8,8 @@
     "clock",
     "note",
     "countdown",
-    "habit"
+    "habit",
+    "media"
   ],
   "permissions": [
     "core:window:allow-start-dragging",

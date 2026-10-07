@@ -1,7 +1,9 @@
 import bundledHolidays from "../../data/holidays/china.json";
-export type WidgetKind = "calendar" | "todo" | "clock" | "note" | "countdown" | "habit";
+export type WidgetKind = "calendar" | "todo" | "clock" | "note" | "countdown" | "habit" | "media";
 export type ThemeMode = "light" | "dark" | "system";
 export type WidgetSize = "small" | "medium" | "large";
+export type MediaTheme = "default" | "vinyl" | "atmosphere" | "cream" | "cassette" | "minimal";
+export interface MediaSettings { theme: MediaTheme }
 
 export const widgetSizeOptions: { value: WidgetSize; label: string }[] = [
   { value: "small", label: "小" },
@@ -57,6 +59,7 @@ export const widgetRegistry: Record<WidgetKind, { label: string; icon: string; d
   clock: { label: "时钟", icon: "clock", description: "查看时间，管理闹钟、秒表和计时器", defaultSize: "small", sizes: ["small", "medium", "large"] },
   note: { label: "便签", icon: "note", description: "随手写下想法，自动保存在本机", defaultSize: "medium", sizes: ["small", "medium", "large"] },
   countdown: { label: "倒数日", icon: "hourglass", description: "记住值得期待与纪念的日子", defaultSize: "small", sizes: ["small", "medium", "large"] },
+  media: { label: "正在播放", icon: "music", description: "查看当前媒体，随手暂停或切换曲目", defaultSize: "medium", sizes: ["small", "medium", "large"] },
 };
 export const widgetKinds = Object.keys(widgetRegistry) as WidgetKind[];
 export function isWidgetKind(value: unknown): value is WidgetKind { return typeof value === "string" && Object.prototype.hasOwnProperty.call(widgetRegistry, value); }
@@ -72,6 +75,7 @@ export interface Settings {
   clockTools: ClockTools;
   note: NoteSettings;
   habit: HabitSettings;
+  media: MediaSettings;
   widgets: Record<WidgetKind, WidgetSettings>;
 }
 
@@ -104,7 +108,9 @@ export const defaultSnapshot: AppSnapshot = {
     clockTools: structuredClone(defaultClockTools),
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
     habit: { style: "card", selectedIds: null },
+    media: { theme: "default" },
     widgets: {
+      media: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },
       habit: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       clock: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },
       note: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },

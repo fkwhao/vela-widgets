@@ -14,8 +14,13 @@ withDefaults(defineProps<{ name: string; size?: number }>(), { size: 18 });
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <template v-if="name === 'play'"><path d="m8 4 12 8-12 8Z" fill="currentColor" stroke="none" /></template>
+    <template v-if="name === 'music'"><path d="M9 18V5l11-2v13M9 8l11-2" /><ellipse cx="6" cy="18" rx="3" ry="2.5" /><ellipse cx="17" cy="16" rx="3" ry="2.5" /></template>
+    <template v-else-if="name === 'previous'"><path d="m19 5-11 7 11 7Z" fill="currentColor" stroke="none" /><path d="M5 5v14" stroke-width="2.5" /></template>
+    <template v-else-if="name === 'next'"><path d="m5 5 11 7-11 7Z" fill="currentColor" stroke="none" /><path d="M19 5v14" stroke-width="2.5" /></template>
+    <template v-else-if="name === 'play'"><path d="m8 4 12 8-12 8Z" fill="currentColor" stroke="none" /></template>
     <template v-else-if="name === 'pause'"><path d="M8 5v14M16 5v14" stroke-width="4" /></template>
+    <template v-else-if="name === 'volume'"><path d="m11 5-6 4H2v6h3l6 4ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14" /></template>
+    <template v-else-if="name === 'volume-off'"><path d="m11 5-6 4H2v6h3l6 4ZM16 9l6 6M22 9l-6 6" /></template>
     <template v-else-if="name === 'return-today'"><path d="M4 8a8 8 0 1 1-1 8M4 3v5h5" /><circle cx="12" cy="12" r="2" /></template>
     <template v-else-if="name === 'arrow-up'"><path d="M12 21V3M3 12l9-9 9 9" /></template>
     <template v-else-if="name === 'arrow-down'"><path d="M12 3v18M3 12l9 9 9-9" /></template>

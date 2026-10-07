@@ -82,6 +82,7 @@ export async function saveWidgetPosition(kind: WidgetKind, position: { x: number
 }
 
 export async function setClockSettings(clock: import("../shared/types").ClockSettings): Promise<void> { applySnapshot(await backend.setClockSettings(clock)); }
+export async function setMediaTheme(theme: import("../shared/types").MediaTheme): Promise<void> { applySnapshot(await backend.setMediaTheme(theme)); }
 export async function saveNote(id: number, text: string): Promise<void> { applySnapshot(await backend.saveNote(id, text)); }
 export async function createNote(): Promise<void> { applySnapshot(await backend.createNote()); }
 export async function selectNote(id: number): Promise<void> { applySnapshot(await backend.selectNote(id)); }

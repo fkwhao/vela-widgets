@@ -4,6 +4,7 @@ const WidgetPreferences = defineAsyncComponent(() => import("../../shared/widget
 const HabitPreferences = defineAsyncComponent(() => import("../../features/habits/components/HabitPreferences.vue"));
 const CalendarSchedulePreferences = defineAsyncComponent(() => import("../../features/calendar/components/CalendarSchedulePreferences.vue"));
 const CalendarPreferences = defineAsyncComponent(() => import("../../features/calendar/components/CalendarPreferences.vue"));
+const MediaPreferences = defineAsyncComponent(() => import("../../features/media/components/MediaPreferences.vue"));
 import AppIcon from "../../shared/ui/AppIcon.vue";
 import { listen } from "@tauri-apps/api/event";
 import { isNativeApp } from "../../infrastructure/backend";
@@ -293,6 +294,7 @@ onUnmounted(() => {
             </div>
 
             <WidgetPreferences v-if="['clock', 'note', 'countdown'].includes(settingKind)" :key="settingKind" :kind="settingKind" />
+            <MediaPreferences v-if="settingKind === 'media'" />
             <HabitPreferences v-if="settingKind === 'habit'" />
 
             <template v-if="settingKind === 'calendar'">

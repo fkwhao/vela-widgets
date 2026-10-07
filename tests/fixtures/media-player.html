@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vela · 正在播放验证</title></head>
+<body><div id="app"></div>
+<script type="module">
+import { createApp, h, ref } from 'vue';
+import MediaFace from '/src/features/media/components/MediaFace.vue';
+import { mediaThemes, mediaWidgetDimensions } from '/src/features/media/mediaThemes.ts';
+import { createMediaPreviewSession } from '/src/features/media/mediaPreview.ts';
+import '/src/shared/styles/base.css';
+import '/src/shared/styles/widgets.css';
+import '/src/features/media/media.css';
+
+// A local, silent SMTC publisher for manual/native integration checks.
+// This fixture isn't an entry point of the production build.
+const canvas = document.createElement('canvas');
+canvas.width = canvas.height = 512;
+const context = canvas.getContext('2d');
+context.fillStyle = '#58775f'; context.fillRect(0, 0, 512, 512);
+context.strokeStyle = '#c5d5b5'; context.lineWidth = 2;
+for (let radius = 40; radius < 240; radius += 22) {
+  context.beginPath(); context.arc(256, 240, radius, 0, Math.PI * 2); context.stroke();
+}
+context.fillStyle = '#e9eddb'; context.font = '28px serif'; context.fillText('MORNING / 01', 46, 462);
+const artwork = createMediaPreviewSession().artwork;
+const tracks = ['晨间序曲', '午后漫游', 'Afterlight · 这是用于检查长标题的第三首测试曲目'];
+const index = ref(0), now = ref(Date.now()), logs = ref([]), dark = ref(false), noCover = ref(false), limited = ref(false), live = ref(false), noVolume = ref(false);
+const theme = ref('default');
+const session = ref({ id: 'qa-session', source: 'Vela 测试播放器', title: tracks[0], artist: 'Vela 验证播放器', album: '本地静音测试', artwork,
+  playbackStatus: 'paused', positionMs: 0, durationMs: 180000, updatedAt: Date.now(), playbackRate: 1,
+  controls: { play: true, pause: true, previous: true, next: true, seek: true }, volume: { level: 65, muted: false } });
+
+const bytes = new Uint8Array(44 + 8000 * 2 * 180), view = new DataView(bytes.buffer);
+let cursor = 0;
+const string = value => { for (const character of value) bytes[cursor++] = character.charCodeAt(0); };
+string('RIFF'); view.setUint32(4, bytes.length - 8, true); cursor = 8; string('WAVEfmt ');
+view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+view.setUint32(24, 8000, true); view.setUint32(28, 16000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+cursor = 36; string('data'); view.setUint32(40, bytes.length - 44, true);
+const audio = new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' })));
+audio.loop = true;
+audio.volume = .65;
+function log(message) { logs.value = [message, ...logs.value].slice(0, 5); }
+function metadata() {
+  navigator.mediaSession.metadata = new MediaMetadata({ title: tracks[index.value], artist: 'Vela 验证播放器', album: '本地静音测试', artwork: [{ src: artwork, sizes: '512x512', type: 'image/png' }] });
+  session.value = { ...session.value, title: tracks[index.value] };
+}
+function timeline() {
+  if (Number.isFinite(audio.duration)) navigator.mediaSession.setPositionState({ duration: audio.duration, position: audio.currentTime, playbackRate: 1 });
+  session.value = { ...session.value, positionMs: audio.currentTime * 1000, updatedAt: Date.now() };
+}
+function status() {
+  metadata();
+  navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing';
+  session.value = { ...session.value, playbackStatus: audio.paused ? 'paused' : 'playing' };
+  timeline();
+}
+function act(input) {
+  log(`收到 ${input.action}${input.positionMs === undefined ? '' : ` · ${Math.round(input.positionMs / 1000)} 秒`}${input.volumeLevel === undefined ? '' : ` · ${input.volumeLevel}%`}${input.muted === undefined ? '' : ` · ${input.muted ? '静音' : '取消静音'}`}`);
+  if (input.action === 'play') { metadata(); audio.play().catch(error => log(error.message)); }
+  if (input.action === 'pause') audio.pause();
+  if (input.action === 'previous' || input.action === 'next') {
+    index.value = (index.value + (input.action === 'next' ? 1 : 2)) % tracks.length;
+    audio.currentTime = 0; metadata(); timeline();
+  }
+  if (input.action === 'seek') { audio.currentTime = input.positionMs / 1000; timeline(); }
+  if (input.action === 'volume') { audio.volume = input.volumeLevel / 100; if (input.volumeLevel > 0) audio.muted = false; }
+  if (input.action === 'mute') audio.muted = input.muted;
+}
+for (const [browserAction, action] of [['play','play'], ['pause','pause'], ['previoustrack','previous'], ['nexttrack','next']]) {
+  navigator.mediaSession.setActionHandler(browserAction, () => act({ action }));
+}
+navigator.mediaSession.setActionHandler('seekto', event => act({ action: 'seek', positionMs: Math.round(event.seekTime * 1000) }));
+audio.addEventListener('play', status); audio.addEventListener('pause', status);
+audio.addEventListener('timeupdate', timeline); audio.addEventListener('loadedmetadata', timeline);
+audio.addEventListener('volumechange', () => session.value = { ...session.value, volume: { level: audio.volume * 100, muted: audio.muted } });
+setInterval(() => { if (!document.hidden) now.value = Date.now(); }, 1000);
+
+createApp({ setup() {
+  const button = (text, click) => h('button', { class: 'qa-button', onClick: click }, text);
+  return () => h('main', { class: 'qa-page' }, [
+    h('p', { class: 'qa-eyebrow' }, 'VELA / LOCAL MEDIA TEST'),
+    h('h1', '正在播放 · 三档布局验证'),
+    h('p', { class: 'qa-description' }, '真实组件视图，搭配本地静音测试媒体。上方按钮检查边界状态；桌面应用可通过 Windows 控制下方媒体。'),
+    h('div', { class: 'qa-toolbar' }, [
+      button('启动静音测试媒体', () => act({ action: 'play' })),
+      button('暂停测试媒体', () => act({ action: 'pause' })),
+      button('切换深浅主题', () => { dark.value = !dark.value; document.documentElement.dataset.theme = dark.value ? 'dark' : 'light'; }),
+      button(noCover.value ? '恢复封面' : '移除封面', () => noCover.value = !noCover.value),
+      button(limited.value ? '恢复控制' : '禁用切歌和进度', () => limited.value = !limited.value),
+      button(live.value ? '恢复进度' : '模拟直播', () => live.value = !live.value),
+      button(noVolume.value ? '恢复音量' : '模拟音量不可用', () => noVolume.value = !noVolume.value),
+    ]),
+    h('nav', { class: 'qa-toolbar qa-themes', 'aria-label': '播放器主题' }, mediaThemes.map(option => h('button', { class: 'qa-button', 'aria-pressed': theme.value === option.value, onClick: () => theme.value = option.value }, option.label))),
+    h('section', { class: 'qa-sizes' }, ['small', 'medium', 'large'].map((size, i) => h('article', [
+      h('p', { class: 'qa-size-label' }, `${['小','中','大'][i]} / ${mediaWidgetDimensions(size,theme.value).width} × ${mediaWidgetDimensions(size,theme.value).height}`),
+      h('div', { class: `widget-window media-window media-theme-${theme.value} size-${size}`, style: `width:${mediaWidgetDimensions(size,theme.value).width}px;height:${mediaWidgetDimensions(size,theme.value).height}px` }, [
+        h(MediaFace, { session: { ...session.value, artwork: noCover.value ? null : artwork, durationMs: live.value ? 0 : session.value.durationMs, volume: noVolume.value ? null : session.value.volume,
+          controls: { ...session.value.controls, previous: !limited.value, next: !limited.value, seek: !limited.value && !live.value } }, theme: theme.value, size, now: now.value, busy: false, onAction: act }),
+      ]),
+    ]))),
+    h('div', { class: 'qa-log', role: 'status' }, [h('strong', session.value.playbackStatus === 'playing' ? '测试媒体正在播放' : '测试媒体已暂停'), ...logs.value.map(message => h('span', message))]),
+  ]);
+} }).mount('#app');
+</script>
+<style>
+body { overflow:auto; }
+.qa-page { min-height:100vh; padding:28px; background:#e8e9e5; color:#242824; --widget-radius:19px; --widget-edge-inset:1px; --widget-background-alpha:.95; }
+.qa-eyebrow { margin:0 0 6px; font-size:10px; letter-spacing:.16em; color:#617364; }
+.qa-page h1 { margin:0; font-size:23px; font-weight:600; }
+.qa-description { max-width:830px; margin:10px 0 18px; font-size:12px; color:#626862; }
+.qa-toolbar { display:flex; flex-wrap:wrap; gap:8px; }
+.qa-button { padding:7px 11px; border:1px solid #c5cbc3; border-radius:8px; background:#f7f8f4; color:#303830; font:inherit; font-size:12px; cursor:pointer; }
+.qa-button:hover { background:#fff; }
+.qa-themes { margin-top:12px; }
+.qa-themes .qa-button[aria-pressed="true"] { border-color:#3d573c; color:#274224; box-shadow:inset 0 0 0 1px #3d573c; }
+.qa-sizes { display:flex; flex-wrap:wrap; gap:20px; margin:22px 0; }
+.qa-size-label { margin:0 0 8px; font-size:11px; color:#657064; }
+.qa-log { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:11px; color:#626c62; }
+.qa-log strong { font-weight:500; color:#334434; }
+</style>
+</body></html>

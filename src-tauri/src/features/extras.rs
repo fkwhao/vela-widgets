@@ -703,6 +703,49 @@ mod tests {
     }
 
     #[test]
+    fn media_themes_migrate_and_survive_database_reload() {
+        let db = Connection::open_in_memory().unwrap();
+        initialize_database(&db).unwrap();
+        let mut old = serde_json::to_value(Settings::default()).unwrap();
+        old.as_object_mut().unwrap().remove("media");
+        old["widgets"]["calendar"]["x"] = serde_json::json!(123);
+        db.execute(
+            "UPDATE app_settings SET document=?1 WHERE id=1",
+            [old.to_string()],
+        )
+        .unwrap();
+        let mut restored = read_settings(&db).unwrap();
+        assert_eq!(restored.media.theme, media::MediaTheme::Default);
+        for theme in [
+            "default",
+            "vinyl",
+            "atmosphere",
+            "cream",
+            "cassette",
+            "minimal",
+        ] {
+            restored.media = serde_json::from_value(serde_json::json!({"theme": theme})).unwrap();
+            write_settings(&db, &restored).unwrap();
+            let reloaded = read_settings(&db).unwrap();
+            assert_eq!(
+                serde_json::to_value(reloaded.media).unwrap()["theme"],
+                theme
+            );
+            assert_eq!(reloaded.widgets["calendar"].x, Some(123.0));
+            let widget = &reloaded.widgets["media"];
+            assert_eq!(
+                (widget.width, widget.height),
+                if theme == "atmosphere" {
+                    (170.0, 364.0)
+                } else {
+                    (364.0, 170.0)
+                }
+            );
+        }
+        assert!(serde_json::from_value::<media::MediaTheme>(serde_json::json!("lyrics")).is_err());
+    }
+
+    #[test]
     fn old_settings_keep_existing_widgets_and_gain_disabled_defaults() {
         let db = Connection::open_in_memory().unwrap();
         initialize_database(&db).unwrap();
@@ -710,7 +753,7 @@ mod tests {
         old.as_object_mut().unwrap().remove("clock");
         old.as_object_mut().unwrap().remove("note");
         old.as_object_mut().unwrap().remove("habit");
-        for kind in ["clock", "note", "countdown", "habit"] {
+        for kind in ["clock", "note", "countdown", "habit", "media"] {
             old["widgets"].as_object_mut().unwrap().remove(kind);
         }
         old["widgets"]["calendar"]["x"] = serde_json::json!(123);
@@ -724,6 +767,8 @@ mod tests {
         assert_eq!(restored.widgets.len(), WIDGET_KINDS.len());
         assert!(!restored.widgets["note"].enabled);
         assert!(!restored.widgets["habit"].enabled);
+        assert!(!restored.widgets["media"].enabled);
+        assert_eq!(restored.widgets["media"].size, "medium");
         assert_eq!(restored.habit.style, "card");
         assert!(restored.habit.selected_ids.is_none());
     }

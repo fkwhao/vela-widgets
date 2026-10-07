@@ -12,16 +12,29 @@ mod features;
 mod platform;
 
 use extras::{ClockSettings, CountdownItem, NoteSettings};
-use features::{clock_tools, extras, habits, holidays};
+use features::{clock_tools, extras, habits, holidays, media};
 #[cfg(target_os = "windows")]
 use platform::native_surface;
-const WIDGET_KINDS: [&str; 6] = ["calendar", "todo", "clock", "note", "countdown", "habit"];
+const WIDGET_KINDS: [&str; 7] = [
+    "calendar",
+    "todo",
+    "clock",
+    "note",
+    "countdown",
+    "habit",
+    "media",
+];
 struct WidgetDefinition {
     kind: &'static str,
     title: &'static str,
     default_size: &'static str,
 }
-const WIDGET_REGISTRY: [WidgetDefinition; 6] = [
+const WIDGET_REGISTRY: [WidgetDefinition; 7] = [
+    WidgetDefinition {
+        kind: "media",
+        title: "正在播放",
+        default_size: "medium",
+    },
     WidgetDefinition {
         kind: "habit",
         title: "习惯打卡",
@@ -133,6 +146,8 @@ pub struct Settings {
     pub note: NoteSettings,
     #[serde(default)]
     pub habit: habits::HabitSettings,
+    #[serde(default)]
+    pub media: media::MediaSettings,
     pub widgets: HashMap<String, WidgetSettings>,
 }
 
@@ -181,6 +196,7 @@ impl Default for Settings {
             clock_tools: clock_tools::ClockTools::default(),
             note: NoteSettings::default(),
             habit: habits::HabitSettings::default(),
+            media: media::MediaSettings::default(),
             theme: "light".to_string(),
             accent_color: "#3b67b8".to_string(),
             widget_transparency: default_widget_transparency(),
@@ -278,6 +294,10 @@ fn read_settings(connection: &Connection) -> rusqlite::Result<Settings> {
     // Preserve existing data while supplying disabled defaults for new widgets.
     for (kind, widget) in Settings::default().widgets {
         settings.widgets.entry(kind).or_insert(widget);
+    }
+    if let Some(widget) = settings.widgets.get_mut("media") {
+        (widget.width, widget.height) =
+            media::widget_dimensions(&widget.size, &settings.media.theme);
     }
     if original
         .as_deref()
@@ -431,7 +451,11 @@ fn create_widget_window(
     let title = widget_title(kind);
     let url = WebviewUrl::App(format!("index.html?view={kind}").into());
     let data_directory = webview_data_path(app)?;
-    let (width, height) = widget_dimensions(&settings.size);
+    let (width, height) = if kind == "media" {
+        media::widget_dimensions(&settings.size, &app_settings.media.theme)
+    } else {
+        widget_dimensions(&settings.size)
+    };
     // Widgets switch between fixed size presets instead of free resizing.
     let mut builder = WebviewWindowBuilder::new(app, kind, url)
         .data_directory(data_directory)
@@ -789,6 +813,9 @@ async fn set_widget_enabled(
         return Err(error);
     }
 
+    if kind == "media" {
+        media::set_enabled(&app, enabled);
+    }
     publish_snapshot(&app, state.inner())
 }
 
@@ -846,18 +873,33 @@ async fn set_widget_size(
     if !WIDGET_SIZES.contains(&size.as_str()) {
         return Err("不支持这个组件尺寸。".to_string());
     }
-    let (width, height) = widget_dimensions(&size);
+    let mut dimensions = widget_dimensions(&size);
+    let mut corner_radius = 19;
     update_settings(state.inner(), |settings| {
+        if kind == "media" {
+            dimensions = media::widget_dimensions(&size, &settings.media.theme);
+        }
+        corner_radius = settings.widget_corner_radius;
         let widget = settings
             .widgets
             .get_mut(&kind)
             .ok_or_else(|| "找不到这个组件的设置。".to_string())?;
         widget.size = size.clone();
-        widget.width = width;
-        widget.height = height;
+        (widget.width, widget.height) = dimensions;
         Ok(())
     })?;
-    if let Some(window) = app.get_webview_window(&kind) {
+    resize_widget_window(&app, &kind, dimensions.0, dimensions.1, corner_radius)?;
+    publish_snapshot(&app, state.inner())
+}
+
+fn resize_widget_window(
+    app: &AppHandle,
+    kind: &str,
+    width: f64,
+    height: f64,
+    corner_radius: u8,
+) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(kind) {
         window
             .set_size(tauri::LogicalSize::new(width, height))
             .map_err(|error| error.to_string())?;
@@ -878,15 +920,9 @@ async fn set_widget_size(
                     .map_err(|error| error.to_string())?;
             }
         }
-        let corner_radius = {
-            let connection = lock_database(state.inner())?;
-            read_settings(&connection)
-                .map_err(|error| error.to_string())?
-                .widget_corner_radius
-        };
         apply_widget_corners(&window, corner_radius)?;
     }
-    publish_snapshot(&app, state.inner())
+    Ok(())
 }
 
 #[tauri::command]
@@ -1093,6 +1129,10 @@ pub fn run() {
                 context_menu_ready: Mutex::new(false),
                 holiday_update: Mutex::new(()),
             });
+            media::start_worker(
+                app.handle().clone(),
+                initial_settings.widgets["media"].enabled,
+            );
 
             create_manager_window(app).map_err(|error| {
                 std::io::Error::other(format!("failed to create manager window: {error}"))
@@ -1208,6 +1248,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            media::get_media_snapshot,
+            media::refresh_media,
+            media::media_action,
+            media::set_media_theme,
             holidays::set_calendar_settings,
             holidays::save_calendar_event,
             holidays::delete_calendar_event,

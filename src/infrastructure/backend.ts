@@ -2,6 +2,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { applyClockAction, tickClockTools } from "../features/clock/clockTools";
 import { normalizeNotes, nextNoteId } from "../features/notes/notes";
+import { mediaWidgetDimensions, normalizeMediaTheme } from "../features/media/mediaThemes";
 import { validateCalendarEvent } from "../features/calendar/calendarEvents";
 import { dateKey, tickHabitReminders, validateHabit, validateRecord } from "../features/habits/habits";
 import type { HabitItem, HabitRecordInput, HabitSettings } from "../shared/types";
@@ -9,6 +10,15 @@ import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolida
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../shared/types";
 
 const previewKey = "vela.preview.snapshot.v1";
+
+export async function setMediaTheme(theme: import("../shared/types").MediaTheme): Promise<AppSnapshot> {
+  if (normalizeMediaTheme(theme) !== theme) throw "请选择有效的播放器主题。";
+  if (isNativeApp()) return invoke("set_media_theme", { theme });
+  return updatePreview(snapshot => {
+    snapshot.settings.media = { theme };
+    Object.assign(snapshot.settings.widgets.media, mediaWidgetDimensions(snapshot.settings.widgets.media.size, theme));
+  });
+}
 
 export async function saveHabit(item: HabitItem): Promise<AppSnapshot> {
   const error = validateHabit(item); if (error) throw error;
@@ -73,6 +83,7 @@ function readPreview(): AppSnapshot {
           calendar: { ...defaults.settings.calendar, ...parsed.settings?.calendar },
           note: normalizeNotes(parsed.settings?.note ?? defaults.settings.note),
           habit: { ...defaults.settings.habit, ...parsed.settings?.habit },
+          media: { theme: normalizeMediaTheme(parsed.settings?.media?.theme) },
           // Merge per widget so fields added later (such as size) keep their defaults.
           widgets: Object.fromEntries(widgetKinds.map((kind) => [kind, { ...defaults.settings.widgets[kind], ...parsed.settings?.widgets?.[kind] }])) as AppSnapshot["settings"]["widgets"],
         },
@@ -82,6 +93,7 @@ function readPreview(): AppSnapshot {
         habitRecords: Array.isArray(parsed.habitRecords) ? parsed.habitRecords : [],
         holidays: normalizeHolidayCache(parsed.holidays, defaults.holidays.data),
       };
+      Object.assign(next.settings.widgets.media, mediaWidgetDimensions(next.settings.widgets.media.size, next.settings.media.theme));
       if (JSON.stringify(next) !== stored) writePreview(next);
       return next;
     }
@@ -137,6 +149,7 @@ export async function setWidgetSize(kind: WidgetKind, size: WidgetSize): Promise
   if (isNativeApp()) return invoke<AppSnapshot>("set_widget_size", { kind, size });
   return updatePreview((snapshot) => {
     snapshot.settings.widgets[kind].size = size;
+    if (kind === "media") Object.assign(snapshot.settings.widgets.media, mediaWidgetDimensions(size, snapshot.settings.media.theme));
   });
 }
 
