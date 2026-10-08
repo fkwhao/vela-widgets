@@ -1,8 +1,16 @@
-# Vela Widgets
+<p align="center">
+  <img src="public/vela-icon.png" width="96" height="96" alt="Vela Widgets 应用图标" />
+</p>
 
-把日历、便签、待办和音乐，放在随手可见的桌面上。
+<h1 align="center">Vela Widgets</h1>
 
-**Windows 桌面组件 · 自由编排 · 本地存储**
+<p align="center">把日历、便签、待办和音乐，放在随手可见的桌面上。</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.1.0-3B67B8?style=flat-square" alt="版本 0.1.0" />
+  <img src="https://img.shields.io/badge/platform-Windows_x64-20252B?style=flat-square" alt="Windows 64 位" />
+  <img src="https://img.shields.io/badge/status-in_development-66705A?style=flat-square" alt="持续开发中" />
+</p>
 
 Vela 是一款面向 Windows 的桌面组件应用。将日常需要的信息留在桌面，用统一的外观、可调整的尺寸和自由布局，让它们自然融入你的工作空间。
 
@@ -43,6 +51,15 @@ Vela 是一款面向 Windows 的桌面组件应用。将日常需要的信息留
 应用音量仅控制准确匹配的播放器；无法匹配时显示为不可用。歌曲信息与封面仅在运行时使用，不保存听歌历史，也不保存采集的音频。
 
 ## 技术栈
+
+<p>
+  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri_2-20252B?style=flat-square&amp;logo=tauri&amp;logoColor=FFC131" alt="Tauri 2" /></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-20252B?style=flat-square&amp;logo=rust&amp;logoColor=F28C58" alt="Rust" /></a>
+  <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue_3-20252B?style=flat-square&amp;logo=vuedotjs&amp;logoColor=4FC08D" alt="Vue 3" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-20252B?style=flat-square&amp;logo=typescript&amp;logoColor=6DB4F5" alt="TypeScript" /></a>
+  <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite-20252B?style=flat-square&amp;logo=vite&amp;logoColor=B8A0FF" alt="Vite" /></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-20252B?style=flat-square&amp;logo=sqlite&amp;logoColor=78C7EB" alt="SQLite" /></a>
+</p>
 
 | 层级 | 技术 |
 | --- | --- |
