@@ -37,6 +37,12 @@
     "active": true,
     "targets": ["nsis"],
     "icon": ["icons/vela.ico"],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/vela.ico",
+        "uninstallerIcon": "icons/vela.ico"
+      }
+    },
     "category": "Productivity",
     "shortDescription": "Quiet desktop widgets for Windows",
     "longDescription": "A local-first Windows desktop app for useful, calm desktop widgets."

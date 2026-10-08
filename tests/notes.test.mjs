@@ -28,7 +28,8 @@ test("expiry respects the original creation date, keeps permanent notes and neve
   const expired = normalizeNotes(settings, 1000 + 24 * 3600000);
   assert.equal(expired.activeId, 2); assert.equal(expired.text, "永久");
   assert.equal(normalizeNotes({ ...expired, notes: [], activeId: 0 }).notes.length, 0);
-  assert.ok(nextNoteId([{ id: Date.now() + 1000 }]) > Date.now() + 1000);
+  const existingId = Date.now() + 1000;
+  assert.ok(nextNoteId([{ id: existingId }]) > existingId);
 });
 test("titles come from the first nonempty line and strip Markdown formatting", () => {
   assert.equal(noteTitle("\n# **工作** [计划](https://example.com)\n正文"), "工作 计划");

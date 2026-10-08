@@ -405,7 +405,7 @@ onUnmounted(() => {
           <template v-else-if="activePage === 'about'">
             <div class="settings-group">
               <div class="settings-card about-card">
-                <div class="brand-mark"><span></span><span></span><span></span></div>
+                <img class="brand-mark" src="/vela-icon.png" alt="Vela Widgets 图标" width="36" height="36" />
                 <div class="card-text">
                   <strong>Vela Widgets</strong>
                   <span>版本 0.1.0</span>

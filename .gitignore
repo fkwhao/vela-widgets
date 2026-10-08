@@ -4,6 +4,10 @@ src-tauri/target/
 src-tauri/.dev-data/
 .npm-cache/
 .vite/
+artifacts/icon-assets/
+artifacts/releases/
+artifacts/search-focus-*.jpg
+artifacts/local-media-diagnostics/
 *.log
 *.dmp
 *.core

@@ -1,109 +1,69 @@
-# Vela Widgets
+<p align="center">
+  <img src="public/vela-icon.png" width="88" height="88" alt="Vela Widgets 图标" />
+</p>
 
-Vela is a Windows desktop-widget app built as one Tauri 2 + Rust + Vue 3 + TypeScript repository. This is the first implementation slice; the visual direction and interaction details remain open to iteration.
+<h1 align="center">Vela Widgets</h1>
 
-## Current slice
+<p align="center">把日历、便签、待办和音乐，放在随手可见的桌面上。</p>
 
-- One desktop canvas/WebView for all enabled widgets and time reminders, covering the primary monitor's work area. The preferences window is created on demand and destroyed when closed.
-- Arrangement mode supports title-handle dragging, grid/edge snapping (Alt bypasses snapping), arrow-key nudging (Shift moves 16 pixels), independent position locks and size presets.
-- Arrangement starts from the preferences window's Global Settings group; the desktop has no persistent arrangement control. If all widgets are disabled, an Open Preferences recovery entry remains.
-- Four layout templates (left, right, bottom and focus) arrange the currently enabled widgets, preserving their sizes and contents and avoiding locked cards. Placement accounts for mixed sizes and portrait covers; insufficient space reports an error without applying a partial layout. Up to 12 named layouts restore positions for currently enabled widgets and automatically place additions without toggling widget visibility.
-- Native rounded HWND regions keep empty canvas areas outside Windows hit testing in normal mode; arranging temporarily enables the full canvas. Native backdrop blur is restricted to widget rectangles. Always-on-top applies to the whole shared canvas.
-- Widget views and preferences load on demand. Plain notes load no formula or syntax-highlighting engines; those features load when needed and concurrent preview updates discard stale results. Native blur brushes, clips and visuals are reused across popover changes and widget moves; disabling blur or removing widgets releases surplus layers. The canvas does not allocate the legacy full-monitor blur visual.
-- Local SQLite storage for component preferences, notes, countdown events and to-do items, with backward-compatible settings migration.
-- Three fixed size presets for each widget, shared appearance, position locking and in-canvas context menus.
-- Calendar: medium/large month navigation, offline 2026 mainland China holiday and adjusted-workday markers, independent visibility controls and optional daily updates. Manual checks are available; validated updates persist in SQLite and failures keep existing data. The public update source becomes available after publishing the holiday files to main; see [holiday data maintenance](data/holidays/README.md).
-- Clock: 12/24-hour display, optional seconds, and up to three offline world-clock cities with automatic daylight-saving offsets.
-- Notes: multiple autosaved Markdown notes in one window, titles from the first nonempty line, desktop create/delete with undo, right-click list, per-note colors and 3D vertical switching. Rendering includes tables, tasks, footnotes, code highlighting, KaTeX and Mermaid. Images load only on request; raw HTML displays as text.
-- Per-note retention defaults to never delete; optional durations start at creation time, and expired notes are removed while running or on the next launch. Existing single-note content migrates automatically.
-- Countdown: create/edit/delete events in preferences, annual recurrence and elapsed-day mode. Feb 29 recurrences use Feb 28 in non-leap years.
-- To-do and countdown use manual vertical pagination with shared arrows and page indicators; notes retain a thin scrollbar and enter editing only from the edit button.
-- Habits: local daily records with configurable weekdays, start date, daily count target, goal days, Emoji, colour and encouragement. Card, list and weekly report styles support all three sizes; the focused card switches only after reaching the day's target. The manager includes create/edit/pause/delete/reorder, monthly/weekly/yearly reports, backfill/undo and optional mood, rating and numeric results. Historical records keep their original target. Opt-in scheduled reminders reuse the shared canvas reminder while the app is running; completed/rest/paused habits do not remind, and past reminders are not replayed. Preset streak milestones are calculated from records; custom rewards are not part of this slice.
-- New widgets are disabled by default; enable them from preferences. Widget content works offline; holiday updates connect only when explicitly requested or enabled.
-- Now playing: an opt-in Windows SMTC widget that follows the system's current media session. Every size has progress, seeking when supported, and a player volume slider with mute; medium and large also show artist, previous/next and elapsed/total time. Core Audio volume targets only sessions with the exact source executable or package identity, including the player's output on non-default devices; unavailable or ambiguous matches disable volume without falling back to system volume. Browser media shares its browser application's mixer volume. Metadata, playback, timeline, audio-session and device updates use system events; closing the widget releases subscriptions. Covers come from the system thumbnail stream (raster formats up to 2 MiB); Vela makes no media network requests and stores no playback history. Missing covers, missing timeline, unsupported controls, no media and connection failures have explicit states. Browser preview cannot read system media.
-- Light and dark themes, with a blue accent that can be adjusted in the appearance page.
-- Now-playing themes: Classic, Cover card, Colour vinyl and Minimal strip, selectable in the now-playing preferences with previews of all three sizes. Cover card uses a portrait 224 × 356 medium window; the other medium themes use 364 × 170. Switching themes and sizes resizes the native window and keeps it on the current monitor. Cover card and vinyl sample three colours locally from the system cover, with readable white text and a fallback for missing artwork. The selection persists locally and older settings migrate to Classic. Vinyl rotation follows playback and respects reduced motion. Themes reuse SMTC metadata and controls. Minimal uses real process-scoped WASAPI loopback spectrum (Windows build 20348+): four frequency bands from a bounded 2048-frame stereo Hann-window FFT, sent separately from metadata at up to 25 Hz. Capture runs only for an enabled minimal widget with a playing, uniquely identified audio process; pause, disable, theme/source changes and failures release capture resources. No audio is saved or sent outside the local app, and no system-wide capture or fake animation is used when unavailable. A browser audio process can include multiple tabs. Settings previews retain clearly labelled demo animation. Lyrics, listening statistics, favourites and downloads are not available.
-- In-browser preview mode with local storage when the app is run outside Tauri.
+<p align="center"><strong>Windows 桌面组件 · 自由编排 · 本地存储</strong></p>
 
-The Windows login-start setting, shell-level desktop pinning, and display/DPI-aware recovery still need native implementation and validation. The shared canvas requests tool-window behavior and are excluded from the taskbar, but their final Alt+Tab behavior still needs manual Windows validation. Widget positions migrate to primary-work-area coordinates and are clamped at rendering; live monitor switching and DPI recovery still need native validation.
+Vela 是一款面向 Windows 的桌面组件应用。将日常需要的信息留在桌面，用统一的外观、可调整的尺寸和自由布局，让它们自然融入你的工作空间。
 
-The visual system in this first slice is a starting point, not a fixed design standard. Component proportions, density, materials, and colors remain open to iteration.
+## 组件
 
-## Run
+| 组件 | 能做什么 |
+| --- | --- |
+| 日历 | 月历、日程、中国大陆节假日与调休标记 |
+| 时钟 | 世界时钟、闹钟、秒表和倒计时 |
+| 便签 | 多篇 Markdown 便签、自动保存、独立配色与保留时长 |
+| 待办 | 记录任务、截止日期和完成状态 |
+| 倒数日 | 倒计时、累计天数与每年重复的纪念日 |
+| 习惯打卡 | 每日目标、打卡记录与统计报告 |
+| 正在播放 | 歌曲、封面、播放控制、进度与播放器音量 |
 
+## 界面预览
 
-```powershell
-npm install
-```
+![Vela 播放器主题预览](artifacts/media-theme-preview.jpg)
 
-For a development run whose WebView2 profile and SQLite file stay inside this checkout:
+*封面卡片、流彩黑胶与极简横条的外观预览，曲目与频谱为示例数据。*
 
-```powershell
-$env:VELA_DEV_DATA_DIR = (Join-Path (Get-Location) "src-tauri\.dev-data")
-npm start
-```
+## 设计特点
 
-`npm start` launches the native Tauri app. `npm run dev` is a browser preview; open `http://127.0.0.1:1420/?view=desktop` to test canvas arrangement with separate preview data. Browser tests do not verify Windows hit testing, native blur or actual WebView2 memory savings.
+**自由编排**
 
-The manager is created only on demand during normal launch. To show it at startup while reviewing the manager UI, set this debug-only switch first:
+组件支持小、中、大三档尺寸，可拖动、吸附和锁定位置。内置左侧、右侧、底部与聚焦布局，也可以保存自己的桌面布局。
 
-```powershell
-$env:VELA_SHOW_MANAGER = "1"
-```
+**统一外观**
 
-For a browser-only layout preview:
+浅色、深色与跟随系统模式，配合自定义强调色、圆角和透明度。偏好设置支持搜索，聚焦与文字选中效果适配深浅主题。
 
-```powershell
-npm run dev
-```
+**音乐随桌面而变**
 
-The Tauri build uses the installed Microsoft Edge WebView2 runtime. The first build downloads Rust and JavaScript dependencies if they are not already cached. The debug-only data path and manager preview switches are ignored by release builds.
+经典、封面卡片、流彩黑胶与极简横条四种播放器主题。封面卡片与黑胶从专辑封面取色，极简主题可展示对应播放器的真实音频频谱。
 
-## Project structure
+**内容留在本机**
 
-Frontend code is grouped by feature rather than by file type:
+便签、待办、日程、打卡记录和设置存储于本机。基础组件可离线使用；节假日更新和外部图片仅在相应功能被请求或启用时联网。
 
-```text
-src/
-  main.ts                   Application bootstrap
-  app/                      Root view and shared application state
-  features/
-    calendar/               Calendar widgets, editors and holiday logic
-    clock/                  Clock widgets, themes and clock tools
-    countdown/              Countdown widget and date calculations
-    desktop/                Shared canvas, arrangement and saved layouts
-    habits/                 Habit widgets, management, reports and styles
-    notes/                  Notes, Markdown rendering and retention
-    media/                  Now-playing widget and runtime media session UI
-    todos/                  To-do widget and pagination
-  shared/
-    ui/                     Reusable controls and icons
-    widgets/                Common widget frame, settings and previews
-    composables/            Shared Vue lifecycle helpers
-    styles/                 Global theme and shared widget styles
-    types.ts                Shared settings and snapshot contracts
-  views/                    Manager, context-menu and reminder windows
-  infrastructure/           Tauri commands and browser storage adapter
-src-tauri/src/
-  features/                 Native clock, habit, holiday, media and storage modules
-  platform/                 Windows-specific surface integration
-  lib.rs                    App setup, shared database and window coordination
-  main.rs                   Native executable entry
-```
+## 播放器支持
 
-Keep feature-specific UI and pure logic together in `features/<name>`. Put controls shared by multiple features in `shared`; window-level composition belongs in `views`. Application state lives in `app`, while native communication and browser persistence stay in `infrastructure`. Shared snapshot contracts remain centralized because the frontend and native backend exchange one snapshot.
+正在播放组件读取 Windows 系统媒体会话。歌曲信息、封面、进度和控制能力取决于播放器提供的内容：能显示曲目，不代表同时支持进度或拖动。
 
-Tests in `tests/` load pure logic from its feature directory. Holiday source data remains in `data/holidays/`; moving code must preserve its bundled data references. This layout change does not alter Tauri command names, window labels, database tables or stored settings.
+应用音量仅控制准确匹配的播放器；无法匹配时显示为不可用。歌曲信息与封面仅在运行时使用，不保存听歌历史，也不保存采集的音频。
 
-## Validation
+## 技术栈
 
-```powershell
-npm run build
-npm test
-cd src-tauri
-cargo test --locked
-```
+| 层级 | 技术 |
+| --- | --- |
+| 桌面应用 | Tauri 2 |
+| 原生功能 | Rust、Windows API |
+| 界面 | Vue 3、TypeScript、Vite |
+| 本地数据 | SQLite |
+| 系统媒体 | Windows SMTC、Core Audio、WASAPI |
 
-Browser previews of the new widgets use their actual preset dimensions. Timer refreshes pause when the document is hidden and realign on focus/visibility changes. Native occlusion, dragging, IME and multi-monitor behavior still require Windows manual validation.
+组件共用桌面画布，设置窗口按需打开，功能视图按需加载。
 
-The now-playing fixture and native integration checks are documented in [media validation](tests/media-manual.md). These opt-in checks require an actual Windows desktop media service; the default test suite remains independent of external players. The silent fixture validates play/pause, track changes, seeking, cover reads and SMTC events. The volume integration check restores the fixture's original mixer volume and verifies other applications and endpoint volume stay unchanged. Third-party player support depends on the metadata and controls it exposes to Windows.
+## 项目状态
+
+项目持续迭代中。当前已实现七类组件、桌面编排、外观设置和系统播放器集成；登录自启动、桌面固定与多显示器适配仍在完善。
