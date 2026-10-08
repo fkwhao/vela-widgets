@@ -1,12 +1,8 @@
-<p align="center">
-  <img src="public/vela-icon.png" width="88" height="88" alt="Vela Widgets 图标" />
-</p>
+# Vela Widgets
 
-<h1 align="center">Vela Widgets</h1>
+把日历、便签、待办和音乐，放在随手可见的桌面上。
 
-<p align="center">把日历、便签、待办和音乐，放在随手可见的桌面上。</p>
-
-<p align="center"><strong>Windows 桌面组件 · 自由编排 · 本地存储</strong></p>
+**Windows 桌面组件 · 自由编排 · 本地存储**
 
 Vela 是一款面向 Windows 的桌面组件应用。将日常需要的信息留在桌面，用统一的外观、可调整的尺寸和自由布局，让它们自然融入你的工作空间。
 
@@ -21,12 +17,6 @@ Vela 是一款面向 Windows 的桌面组件应用。将日常需要的信息留
 | 倒数日 | 倒计时、累计天数与每年重复的纪念日 |
 | 习惯打卡 | 每日目标、打卡记录与统计报告 |
 | 正在播放 | 歌曲、封面、播放控制、进度与播放器音量 |
-
-## 界面预览
-
-![Vela 播放器主题预览](artifacts/media-theme-preview.jpg)
-
-*封面卡片、流彩黑胶与极简横条的外观预览，曲目与频谱为示例数据。*
 
 ## 设计特点
 
