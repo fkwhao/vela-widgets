@@ -12,6 +12,6 @@ export function normalizeMediaTheme(value: unknown): MediaTheme {
 }
 
 export function mediaWidgetDimensions(size: WidgetSize, theme: MediaTheme) {
-  if (size === "medium" && theme === "atmosphere") return { width: 170, height: 364 };
+  if (size === "medium" && theme === "atmosphere") return { width: 224, height: 356 };
   return { width: size === "small" ? 170 : 364, height: size === "large" ? 384 : 170 };
 }

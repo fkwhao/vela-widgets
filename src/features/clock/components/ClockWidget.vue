@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue";
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref } from "vue";
 import ClockThemeFace from "./ClockThemeFace.vue";
 import AnalogClock from "./AnalogClock.vue";
-import ClockToolsPanel from "./ClockToolsPanel.vue";
+const ClockToolsPanel = defineAsyncComponent(() => import('./ClockToolsPanel.vue'));
 import { clockModes, type ClockMode } from "../../../shared/types";
 import WidgetFrame from "../../../shared/widgets/WidgetFrame.vue";
 import AppIcon from "../../../shared/ui/AppIcon.vue";
@@ -47,7 +47,7 @@ const cities = computed(() => settings.value.cities.map((city) => {
     </div>
     <div v-if="modeMenu" class="clock-mode-menu" role="menu" @keydown.esc.stop="closeModeMenu"><button v-for="mode in clockModes" :key="mode.value" role="menuitem" :aria-current="tools.mode === mode.value ? 'true' : undefined" @click="chooseMode(mode.value)"><AppIcon :name="mode.icon" :size="14" /><span>{{ mode.label }}</span><AppIcon v-if="tools.mode === mode.value" name="tick" :size="12" /></button></div>
     <ClockToolsPanel v-if="tools.mode !== 'clock'" :key="tools.mode" :size="widget.size" :drag="drag" />
-    <div v-else class="clock-display" :data-tauri-drag-region="widget.locked ? undefined : ''">
+    <div v-else class="clock-display" :data-tauri-drag-region="drag ? '' : undefined">
     <ClockThemeFace v-if="(settings.theme !== 'default' || widget.size === 'medium')" :now="now" :settings="settings" :size="widget.size" :data-tauri-drag-region="drag" />
     <template v-else>
     <div v-if="widget.size === 'small'" class="clock-analog-small" :data-tauri-drag-region="drag">

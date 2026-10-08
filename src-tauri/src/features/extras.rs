@@ -736,7 +736,7 @@ mod tests {
             assert_eq!(
                 (widget.width, widget.height),
                 if theme == "atmosphere" {
-                    (170.0, 364.0)
+                    (224.0, 356.0)
                 } else {
                     (364.0, 170.0)
                 }

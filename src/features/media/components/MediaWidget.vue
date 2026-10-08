@@ -8,11 +8,11 @@ import { computed } from "vue";
 import { snapshot } from "../../../app/store";
 import { normalizeMediaTheme } from "../mediaThemes";
 const theme = computed(() => normalizeMediaTheme(snapshot.value.settings.media?.theme));
-const { media, session, busy, error, now, native, act, retry } = useMediaSession();
+const { media, session, spectrum, busy, error, now, native, act, retry } = useMediaSession();
 </script>
 <template>
   <WidgetFrame kind="media" :class="`media-theme-${theme}`" header-only drag-background v-slot="{ widget, drag }">
-    <MediaFace v-if="session" :session="session" :size="widget.size" :theme="theme" :now="now" :busy="busy" :drag="drag" @action="act" />
+    <MediaFace v-if="session" :session="session" :spectrum="spectrum" :size="widget.size" :theme="theme" :now="now" :busy="busy" :drag="drag" @action="act" />
     <div v-else class="media-empty" :data-tauri-drag-region="drag">
       <span class="media-empty-icon"><AppIcon name="music" :size="28" /></span>
       <strong>正在播放</strong>

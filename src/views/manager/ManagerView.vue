@@ -5,6 +5,7 @@ const HabitPreferences = defineAsyncComponent(() => import("../../features/habit
 const CalendarSchedulePreferences = defineAsyncComponent(() => import("../../features/calendar/components/CalendarSchedulePreferences.vue"));
 const CalendarPreferences = defineAsyncComponent(() => import("../../features/calendar/components/CalendarPreferences.vue"));
 const MediaPreferences = defineAsyncComponent(() => import("../../features/media/components/MediaPreferences.vue"));
+const DesktopPreferences = defineAsyncComponent(() => import('../../features/desktop/components/DesktopPreferences.vue'));
 import AppIcon from "../../shared/ui/AppIcon.vue";
 import { listen } from "@tauri-apps/api/event";
 import { isNativeApp } from "../../infrastructure/backend";
@@ -31,7 +32,7 @@ import type { ThemeMode, WidgetKind } from "../../shared/types";
 const search = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
 const initialPage = new URLSearchParams(location.search).get('page');
-const activePage = ref(initialPage && isWidgetKind(initialPage) ? initialPage : "home");
+const activePage = ref(initialPage && (isWidgetKind(initialPage)||['home','desktop','appearance','startup','about'].includes(initialPage)) ? initialPage : "home");
 let unlistenNavigate: (() => void) | undefined;
 let disposed = false;
 const errorMessage = ref("");
@@ -48,15 +49,16 @@ watch(
 );
 
 const navGroups = [
-  [
+  { label: '组件', items: [
     { id: "home", label: "我的组件", icon: "grid" },
     ...widgetKinds.map((kind) => ({ id: kind, label: widgetRegistry[kind].label, icon: widgetRegistry[kind].icon })),
-  ],
-  [
+  ] },
+  { label: '全局设置', items: [
     { id: "appearance", label: "外观", icon: "sun" },
+    { id: "desktop", label: "桌面编排", icon: "sliders" },
     { id: "startup", label: "启动", icon: "power" },
     { id: "about", label: "关于", icon: "info" },
-  ],
+  ] },
 ];
 
 const widgetMeta = widgetRegistry;
@@ -82,13 +84,13 @@ const enabledCount = computed(
   () => Object.values(snapshot.value.settings.widgets).filter((widget) => widget.enabled).length,
 );
 const pageTitle = computed(
-  () => navGroups.flat().find((entry) => entry.id === activePage.value)?.label ?? "我的组件",
+  () => navGroups.flatMap(group=>group.items).find((entry) => entry.id === activePage.value)?.label ?? "我的组件",
 );
 const visibleGroups = computed(() => {
   const query = search.value.trim().toLowerCase();
   return navGroups
-    .map((group) => group.filter((item) => item.label.toLowerCase().includes(query)))
-    .filter((group) => group.length > 0);
+    .map((group) => ({...group,items:group.items.filter((item) => item.label.toLowerCase().includes(query))}))
+    .filter((group) => group.items.length > 0);
 });
 const settingKind = computed<WidgetKind | null>(() =>
   isWidgetKind(activePage.value) ? activePage.value : null,
@@ -122,10 +124,6 @@ async function run(action: () => Promise<void>): Promise<void> {
 
 async function toggleWidget(kind: WidgetKind): Promise<void> {
   const enabled = snapshot.value.settings.widgets[kind].enabled;
-  if (enabled && enabledCount.value <= 1) {
-    showError("至少保留一个桌面组件，才能从桌面打开 Vela 偏好设置。");
-    return;
-  }
   await run(() => setWidgetEnabled(kind, !enabled));
 }
 
@@ -163,7 +161,7 @@ function toggleLocked(): void {
 
 onMounted(() => {
   window.addEventListener("keydown", onGlobalKeydown);
-  if (isNativeApp()) void listen<string>('vela://navigate', event => { if (isWidgetKind(event.payload)) activePage.value = event.payload; }).then(stop => { if (disposed) stop(); else unlistenNavigate = stop; });
+  if (isNativeApp()) void listen<string>('vela://navigate', event => { if (navGroups.some(group=>group.items.some(item=>item.id===event.payload))) activePage.value = event.payload; }).then(stop => { if (disposed) stop(); else unlistenNavigate = stop; });
 });
 onUnmounted(() => {
   disposed = true;
@@ -182,10 +180,12 @@ onUnmounted(() => {
       </label>
 
       <nav class="sidebar-nav" aria-label="偏好设置导航">
-        <template v-for="(group, index) in visibleGroups" :key="index">
+        <template v-for="(group, index) in visibleGroups" :key="group.label">
           <div v-if="index > 0" class="nav-separator" role="separator"></div>
+          <div class="nav-group" role="group" :aria-label="group.label">
+          <div class="nav-group-label">{{group.label}}</div>
           <button
-            v-for="item in group"
+            v-for="item in group.items"
             :key="item.id"
             class="nav-item"
             :aria-label="item.label"
@@ -196,6 +196,7 @@ onUnmounted(() => {
             <AppIcon :name="item.icon" :size="16" />
             <span>{{ item.label }}</span>
           </button>
+          </div>
         </template>
         <div v-if="visibleGroups.length === 0" class="nav-empty">没有匹配的设置</div>
       </nav>
@@ -213,6 +214,7 @@ onUnmounted(() => {
             </div>
           </transition>
 
+          <DesktopPreferences v-if="activePage==='desktop'" />
           <template v-if="activePage === 'home'">
             <p class="page-subtitle">{{ enabledCount }} 个组件显示在桌面上</p>
             <div class="settings-group">
@@ -264,7 +266,7 @@ onUnmounted(() => {
                 <AppIcon class="card-icon" name="arrow-up-right" :size="18" />
                 <div class="card-text">
                   <strong>窗口层级</strong>
-                  <span>置顶后组件会显示在其他窗口上方</span>
+                  <span>置顶会作用于整张桌面画布</span>
                 </div>
                 <div class="card-control">
                   <VelaSelect :model-value="currentWidget.alwaysOnTop ? 'top' : 'normal'" label="窗口层级" :options="[{ value: 'normal', label: '普通层级' }, { value: 'top', label: '始终置顶' }]" @update:model-value="onLayerChange" />

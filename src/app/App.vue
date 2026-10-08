@@ -2,21 +2,17 @@
 import { computed, defineAsyncComponent, onMounted, onUnmounted, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import CalendarWidget from "../features/calendar/components/CalendarWidget.vue";
 import HoverHint from "../shared/ui/HoverHint.vue";
-import ContextMenuWindow from "../views/ContextMenuWindow.vue";
-import ManagerView from "../views/manager/ManagerView.vue";
-import ClockReminder from "../views/ClockReminder.vue";
-import ClockWidget from "../features/clock/components/ClockWidget.vue";
-const NoteWidget = defineAsyncComponent(() => import("../features/notes/components/NoteWidget.vue"));
-import CountdownWidget from "../features/countdown/components/CountdownWidget.vue";
-import TodoWidget from "../features/todos/components/TodoWidget.vue";
-import HabitWidget from "../features/habits/components/HabitWidget.vue";
-const MediaWidget = defineAsyncComponent(() => import("../features/media/components/MediaWidget.vue"));
+import { widgetComponents } from '../shared/widgets/widgetComponents';
+const { calendar: CalendarWidget, clock: ClockWidget, note: NoteWidget, countdown: CountdownWidget, todo: TodoWidget, habit: HabitWidget, media: MediaWidget } = widgetComponents;
+const ContextMenuWindow = defineAsyncComponent(() => import('../views/ContextMenuWindow.vue'));
+const ManagerView = defineAsyncComponent(() => import('../views/manager/ManagerView.vue'));
+const ClockReminder = defineAsyncComponent(() => import('../views/ClockReminder.vue'));
 import { openManager, checkHolidayUpdates } from "../infrastructure/backend";
 import { applySnapshot, refreshSnapshot, snapshot } from "./store";
 import { tickPreviewClock, isNativeApp } from "../infrastructure/backend";
 import type { AppSnapshot } from "../shared/types";
+const DesktopCanvas = defineAsyncComponent(() => import('../features/desktop/components/DesktopCanvas.vue'));
 
 const query = new URLSearchParams(window.location.search);
 const view = query.get("view") ?? "manager";
@@ -113,8 +109,9 @@ onUnmounted(() => {
 
 <template>
   <HoverHint :manager="isManager" />
-  <ClockReminder v-if="!isNativeApp() && view !== 'clock-reminder' && snapshot.settings.clockTools.alerts.length" floating />
+  <ClockReminder v-if="(!isNativeApp() || view === 'desktop') && view !== 'clock-reminder' && snapshot.settings.clockTools.alerts.length" floating data-canvas-overlay />
   <ClockReminder v-if="view === 'clock-reminder'" />
+  <DesktopCanvas v-else-if="view === 'desktop'" />
   <ManagerView v-else-if="isManager" />
   <CalendarWidget v-else-if="view === 'calendar'" />
   <TodoWidget v-else-if="view === 'todo'" />

@@ -195,6 +195,10 @@ fn matches_source(source: &str, path: &str, app_id: &str) -> bool {
 fn valid_level(level: f32) -> bool {
     level.is_finite() && (0.0..=100.0).contains(&level)
 }
+fn unique_process_id(ids: impl IntoIterator<Item = u32>) -> Option<u32> {
+    let ids: BTreeSet<u32> = ids.into_iter().filter(|pid| *pid != 0).collect();
+    (ids.len() == 1).then(|| *ids.first().unwrap())
+}
 
 impl AudioRuntime {
     pub(super) fn new(changed: Callback) -> WinResult<Self> {
@@ -335,6 +339,17 @@ impl AudioRuntime {
         }
         Some(MediaVolume { level, muted })
     }
+    pub(super) fn spectrum_process_id(&self) -> Option<u32> {
+        let ids = self.targets.values().filter_map(|target| unsafe {
+            (target.control.GetState().ok() == Some(AudioSessionStateActive))
+                .then(|| target.control.GetProcessId().ok())
+                .flatten()
+                .filter(|pid| *pid != 0)
+        });
+        // Multiple independent audio processes cannot be safely attributed to
+        // one SMTC player. Do not select an arbitrary process or system audio.
+        unique_process_id(ids)
+    }
     pub(super) fn set(&self, level: Option<f32>, muted: Option<bool>) -> Result<(), String> {
         if level.is_some_and(|v| !valid_level(v)) || (level.is_none() && muted.is_none()) {
             return Err("音量必须在 0 到 100 之间。".into());
@@ -365,6 +380,13 @@ impl AudioRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn spectrum_pid_requires_one_unique_non_system_process() {
+        assert_eq!(unique_process_id([]), None);
+        assert_eq!(unique_process_id([0, 0]), None);
+        assert_eq!(unique_process_id([0, 42, 42]), Some(42));
+        assert_eq!(unique_process_id([42, 43]), None);
+    }
     use windows::{
         Media::Control::GlobalSystemMediaTransportControlsSessionManager,
         Win32::{

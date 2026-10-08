@@ -3,10 +3,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { WidgetKind } from "../types";
 import { isNativeApp } from "../../infrastructure/backend";
 import { saveWidgetPosition } from "../../app/store";
+import { useDesktopCanvas } from '../../features/desktop/context';
 
 // Widget sizes are fixed presets, so only the dragged position is persisted.
 export function useWindowBounds(kind: WidgetKind): void {
-  if (!isNativeApp()) return;
+  if (useDesktopCanvas() || !isNativeApp()) return;
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const current = getCurrentWindow();

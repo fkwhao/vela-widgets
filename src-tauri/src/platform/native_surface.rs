@@ -35,10 +35,11 @@ use windows::{
         },
     },
     UI::Composition::{
-        CompositionRoundedRectangleGeometry, Compositor, Desktop::DesktopWindowTarget, SpriteVisual,
+        CompositionRoundedRectangleGeometry, Compositor, ContainerVisual,
+        Desktop::DesktopWindowTarget, SpriteVisual,
     },
 };
-use windows_numerics::Vector2;
+use windows_numerics::{Vector2, Vector3};
 
 const WIDGET_FRAME_SUBCLASS: usize = 0x56454c41;
 const WCA_ACCENT_POLICY: i32 = 19;
@@ -62,8 +63,39 @@ struct CompositionHost {
 
 struct BackdropSurface {
     target: DesktopWindowTarget,
+    root: ContainerVisual,
     visual: SpriteVisual,
     geometry: CompositionRoundedRectangleGeometry,
+    desktop_layers: Vec<DesktopBackdropLayer>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct DesktopBackdropBounds {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    radius: f32,
+}
+
+impl DesktopBackdropBounds {
+    fn from_rect(rect: &crate::features::desktop::CanvasRect, scale: f64) -> Self {
+        Self {
+            x: (rect.x * scale) as f32,
+            y: (rect.y * scale) as f32,
+            width: (rect.width * scale) as f32,
+            height: (rect.height * scale) as f32,
+            radius: (rect.radius * scale)
+                .min(rect.width * scale / 2.0)
+                .min(rect.height * scale / 2.0) as f32,
+        }
+    }
+}
+
+struct DesktopBackdropLayer {
+    visual: SpriteVisual,
+    geometry: CompositionRoundedRectangleGeometry,
+    bounds: Option<DesktopBackdropBounds>,
 }
 
 #[derive(Clone, Copy)]
@@ -96,6 +128,7 @@ thread_local! {
     static HOST: RefCell<Option<CompositionHost>> = const { RefCell::new(None) };
     static SURFACES: RefCell<HashMap<usize, BackdropSurface>> = RefCell::new(HashMap::new());
     static CORNERS: RefCell<HashMap<usize, RoundedBounds>> = RefCell::new(HashMap::new());
+    static DESKTOP_MATERIALS: RefCell<HashMap<usize, u8>> = RefCell::new(HashMap::new());
 }
 
 #[repr(C)]
@@ -165,6 +198,9 @@ unsafe extern "system" fn widget_frame_proc(
         // default window procedure to skip non-client activation painting.
         WM_NCACTIVATE => unsafe { DefSubclassProc(hwnd, message, wparam, LPARAM(-1)) },
         WM_NCDESTROY => unsafe {
+            let _ = DESKTOP_MATERIALS.try_with(|materials| {
+                materials.borrow_mut().remove(&(hwnd.0 as usize));
+            });
             let _ = CORNERS.try_with(|corners| {
                 corners.borrow_mut().remove(&(hwnd.0 as usize));
             });
@@ -212,6 +248,14 @@ fn on_window_thread(
 }
 
 unsafe fn apply_to_hwnd(hwnd: HWND, transparency: u8) -> Result<(), String> {
+    unsafe { apply_material_to_hwnd(hwnd, transparency, false) }
+}
+
+unsafe fn apply_material_to_hwnd(
+    hwnd: HWND,
+    transparency: u8,
+    desktop: bool,
+) -> Result<(), String> {
     if !unsafe { SetWindowSubclass(hwnd, Some(widget_frame_proc), WIDGET_FRAME_SUBCLASS, 0) }
         .as_bool()
     {
@@ -281,7 +325,8 @@ unsafe fn apply_to_hwnd(hwnd: HWND, transparency: u8) -> Result<(), String> {
         return Ok(());
     }
     if enabled {
-        ensure_surface(hwnd).map_err(|error| format!("无法创建组件圆角毛玻璃：{error}"))?;
+        ensure_surface(hwnd, !desktop)
+            .map_err(|error| format!("无法创建组件圆角毛玻璃：{error}"))?;
     }
     SURFACES.with(|surfaces| {
         if let Some(surface) = surfaces.borrow().get(&(hwnd.0 as usize)) {
@@ -294,7 +339,7 @@ unsafe fn apply_to_hwnd(hwnd: HWND, transparency: u8) -> Result<(), String> {
     })
 }
 
-fn ensure_surface(hwnd: HWND) -> windows::core::Result<()> {
+fn ensure_surface(hwnd: HWND, attach_default: bool) -> windows::core::Result<()> {
     if SURFACES.with(|surfaces| surfaces.borrow().contains_key(&(hwnd.0 as usize))) {
         return Ok(());
     }
@@ -328,21 +373,31 @@ fn ensure_surface(hwnd: HWND) -> windows::core::Result<()> {
     let geometry = compositor.CreateRoundedRectangleGeometry()?;
     let clip = compositor.CreateGeometricClipWithGeometry(&geometry)?;
     visual.SetClip(&clip)?;
-    target.SetRoot(&visual)?;
+    let root = compositor.CreateContainerVisual()?;
+    if attach_default {
+        root.Children()?.InsertAtTop(&visual)?;
+    }
+    target.SetRoot(&root)?;
     SURFACES.with(|surfaces| {
         surfaces.borrow_mut().insert(
             hwnd.0 as usize,
             BackdropSurface {
                 target,
+                root,
                 visual,
                 geometry,
+                desktop_layers: Vec::new(),
             },
         );
     });
-    let scale = unsafe { GetDpiForWindow(hwnd) } as f64 / 96.0;
-    update_geometry(hwnd, 19, scale).map_err(|error| {
-        windows::core::Error::new(windows::core::HRESULT(0x80004005_u32 as i32), error)
-    })
+    if attach_default {
+        let scale = unsafe { GetDpiForWindow(hwnd) } as f64 / 96.0;
+        update_geometry(hwnd, 19, scale).map_err(|error| {
+            windows::core::Error::new(windows::core::HRESULT(0x80004005_u32 as i32), error)
+        })?;
+    }
+    // The canvas never allocates the legacy monitor-sized blur visual.
+    Ok(())
 }
 
 fn update_geometry(hwnd: HWND, radius: u8, scale: f64) -> Result<(), String> {
@@ -391,6 +446,170 @@ fn update_geometry(hwnd: HWND, radius: u8, scale: f64) -> Result<(), String> {
     })
 }
 
+// An HWND region excludes the empty desktop area from OS hit testing, including
+// clicks intended for windows belonging to other processes. CSS transparency alone does not.
+pub fn update_desktop_regions(
+    window: &tauri::WebviewWindow,
+    rects: Vec<crate::features::desktop::CanvasRect>,
+    editing: bool,
+    transparency: u8,
+) -> Result<(), String> {
+    let scale = window.scale_factor().map_err(|e| e.to_string())?;
+    on_window_thread(window, move |hwnd| unsafe {
+        use windows::Win32::Graphics::Gdi::{
+            CombineRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HGDIOBJ,
+            RGN_OR,
+        };
+        let material_changed = DESKTOP_MATERIALS.with(|materials| {
+            materials.borrow().get(&(hwnd.0 as usize)).copied() != Some(transparency)
+        });
+        if material_changed {
+            apply_material_to_hwnd(hwnd, transparency, true)?;
+            DESKTOP_MATERIALS.with(|materials| {
+                materials.borrow_mut().insert(hwnd.0 as usize, transparency);
+            });
+        }
+        let mut bounds = windows::Win32::Foundation::RECT::default();
+        GetClientRect(hwnd, &mut bounds).map_err(|e| e.to_string())?;
+        let region = if editing {
+            CreateRectRgn(0, 0, bounds.right, bounds.bottom)
+        } else {
+            CreateRectRgn(0, 0, 0, 0)
+        };
+        if region.is_invalid() {
+            return Err("无法创建桌面交互区域。".into());
+        }
+        for rect in &rects {
+            if !editing {
+                let radius = (rect.radius * scale).round() as i32;
+                let piece = CreateRoundRectRgn(
+                    (rect.x * scale).floor() as i32,
+                    (rect.y * scale).floor() as i32,
+                    ((rect.x + rect.width) * scale).ceil() as i32 + 1,
+                    ((rect.y + rect.height) * scale).ceil() as i32 + 1,
+                    radius * 2,
+                    radius * 2,
+                );
+                if piece.is_invalid() {
+                    let _ = DeleteObject(HGDIOBJ(region.0));
+                    return Err("无法创建组件交互区域。".into());
+                }
+                let combined = CombineRgn(Some(region), Some(region), Some(piece), RGN_OR);
+                let _ = DeleteObject(HGDIOBJ(piece.0));
+                if combined.0 == 0 {
+                    let _ = DeleteObject(HGDIOBJ(region.0));
+                    return Err("无法合并组件交互区域。".into());
+                }
+            }
+        }
+        if SetWindowRgn(hwnd, Some(region), true) == 0 {
+            let _ = DeleteObject(HGDIOBJ(region.0));
+            return Err("无法应用桌面交互区域。".into());
+        }
+        // Windows owns the successful region; do not delete it.
+        CORNERS.with(|corners| {
+            corners.borrow_mut().remove(&(hwnd.0 as usize));
+        });
+        update_desktop_backdrops(hwnd, &rects, scale, transparency)
+    })
+}
+
+// Popovers and tooltips affect only the HWND region. Retain blur layers across
+// those updates, and mutate geometry only for widgets whose bounds changed.
+fn update_desktop_backdrops(
+    hwnd: HWND,
+    rects: &[crate::features::desktop::CanvasRect],
+    scale: f64,
+    transparency: u8,
+) -> Result<(), String> {
+    SURFACES.with(|surfaces| -> Result<(), String> {
+        let mut surfaces = surfaces.borrow_mut();
+        let Some(surface) = surfaces.get_mut(&(hwnd.0 as usize)) else {
+            return Ok(());
+        };
+        let bounds: Vec<_> = if transparency == 0 || transparency == 100 {
+            Vec::new()
+        } else {
+            rects
+                .iter()
+                .filter(|r| r.backdrop && r.width > 0.0 && r.height > 0.0)
+                .map(|r| DesktopBackdropBounds::from_rect(r, scale))
+                .collect()
+        };
+        if surface.desktop_layers.len() == bounds.len()
+            && surface
+                .desktop_layers
+                .iter()
+                .zip(&bounds)
+                .all(|(layer, b)| layer.bounds == Some(*b))
+        {
+            return Ok(());
+        }
+        let children = surface.root.Children().map_err(|e| e.to_string())?;
+        while surface.desktop_layers.len() > bounds.len() {
+            let layer = surface.desktop_layers.last().unwrap();
+            children.Remove(&layer.visual).map_err(|e| e.to_string())?;
+            surface.desktop_layers.pop();
+        }
+        for (index, bounds) in bounds.iter().enumerate() {
+            if surface.desktop_layers.len() <= index {
+                let compositor = surface.root.Compositor().map_err(|e| e.to_string())?;
+                let visual = compositor.CreateSpriteVisual().map_err(|e| e.to_string())?;
+                visual
+                    .SetBrush(
+                        &compositor
+                            .CreateHostBackdropBrush()
+                            .map_err(|e| e.to_string())?,
+                    )
+                    .map_err(|e| e.to_string())?;
+                let geometry = compositor
+                    .CreateRoundedRectangleGeometry()
+                    .map_err(|e| e.to_string())?;
+                visual
+                    .SetClip(
+                        &compositor
+                            .CreateGeometricClipWithGeometry(&geometry)
+                            .map_err(|e| e.to_string())?,
+                    )
+                    .map_err(|e| e.to_string())?;
+                children.InsertAtTop(&visual).map_err(|e| e.to_string())?;
+                surface.desktop_layers.push(DesktopBackdropLayer {
+                    visual,
+                    geometry,
+                    bounds: None,
+                });
+            }
+            let layer = &mut surface.desktop_layers[index];
+            if layer.bounds == Some(*bounds) {
+                continue;
+            }
+            let size = Vector2 {
+                X: bounds.width,
+                Y: bounds.height,
+            };
+            layer.geometry.SetSize(size).map_err(|e| e.to_string())?;
+            layer
+                .geometry
+                .SetCornerRadius(Vector2 {
+                    X: bounds.radius,
+                    Y: bounds.radius,
+                })
+                .map_err(|e| e.to_string())?;
+            layer.visual.SetSize(size).map_err(|e| e.to_string())?;
+            layer
+                .visual
+                .SetOffset(Vector3 {
+                    X: bounds.x,
+                    Y: bounds.y,
+                    Z: 0.0,
+                })
+                .map_err(|e| e.to_string())?;
+            layer.bounds = Some(*bounds);
+        }
+        Ok(())
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -429,6 +648,107 @@ mod tests {
             unsafe { *(data as *mut isize) = lparam.0 };
         }
         unsafe { DefSubclassProc(hwnd, message, wparam, lparam) }
+    }
+
+    #[test]
+    fn desktop_blur_reuses_layers_for_popovers_moves_and_dpi_changes() {
+        use crate::features::desktop::CanvasRect;
+        let window = HiddenWindow(unsafe {
+            CreateWindowExW(
+                WS_EX_TOOLWINDOW | WS_EX_NOREDIRECTIONBITMAP,
+                w!("STATIC"),
+                w!("Vela hidden backdrop regression"),
+                WS_OVERLAPPEDWINDOW,
+                0,
+                0,
+                1000,
+                800,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap()
+        });
+        unsafe {
+            apply_material_to_hwnd(window.0, 60, true).unwrap();
+        }
+        // Platforms without HostBackdropBrush use the existing CSS fallback.
+        if !SURFACES.with(|surfaces| surfaces.borrow().contains_key(&(window.0 .0 as usize))) {
+            return;
+        }
+        let mut rects = vec![
+            CanvasRect {
+                x: 24.0,
+                y: 24.0,
+                width: 170.0,
+                height: 170.0,
+                radius: 19.0,
+                backdrop: true,
+            },
+            CanvasRect {
+                x: 210.0,
+                y: 24.0,
+                width: 364.0,
+                height: 170.0,
+                radius: 19.0,
+                backdrop: true,
+            },
+        ];
+        update_desktop_backdrops(window.0, &rects, 1.25, 60).unwrap();
+        let original = SURFACES.with(|surfaces| {
+            let surfaces = surfaces.borrow();
+            let s = &surfaces[&(window.0 .0 as usize)];
+            assert_eq!(s.root.Children().unwrap().Count().unwrap(), 2);
+            assert_eq!(
+                s.visual.Size().unwrap().X,
+                0.0,
+                "no full-monitor blur visual"
+            );
+            (
+                s.desktop_layers[0].visual.clone(),
+                s.desktop_layers[0].geometry.clone(),
+                s.desktop_layers[1].visual.clone(),
+            )
+        });
+        rects.push(CanvasRect {
+            x: 500.0,
+            y: 400.0,
+            width: 190.0,
+            height: 100.0,
+            radius: 8.0,
+            backdrop: false,
+        });
+        update_desktop_backdrops(window.0, &rects, 1.25, 60).unwrap();
+        rects[0].x = 40.0;
+        update_desktop_backdrops(window.0, &rects, 1.5, 60).unwrap();
+        SURFACES.with(|surfaces| {
+            let surfaces = surfaces.borrow();
+            let s = &surfaces[&(window.0 .0 as usize)];
+            assert_eq!(s.desktop_layers.len(), 2);
+            assert_eq!(s.desktop_layers[0].visual, original.0);
+            assert_eq!(s.desktop_layers[0].geometry, original.1);
+            assert_eq!(s.desktop_layers[1].visual, original.2);
+            assert_eq!(s.desktop_layers[0].visual.Offset().unwrap().X, 60.0);
+            assert_eq!(s.desktop_layers[0].geometry.CornerRadius().unwrap().X, 28.5);
+        });
+        rects.remove(1);
+        update_desktop_backdrops(window.0, &rects, 1.5, 60).unwrap();
+        SURFACES.with(|surfaces| {
+            assert_eq!(
+                surfaces.borrow()[&(window.0 .0 as usize)]
+                    .desktop_layers
+                    .len(),
+                1
+            )
+        });
+        update_desktop_backdrops(window.0, &rects, 1.5, 100).unwrap();
+        SURFACES.with(|surfaces| {
+            let surfaces = surfaces.borrow();
+            let s = &surfaces[&(window.0 .0 as usize)];
+            assert!(s.desktop_layers.is_empty());
+            assert_eq!(s.root.Children().unwrap().Count().unwrap(), 0);
+        });
     }
 
     #[test]

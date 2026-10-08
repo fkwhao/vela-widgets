@@ -9,6 +9,7 @@ async function load(file) {
 }
 const { paletteFromPixels, fallbackArtworkPalette } = await load("artworkPalette");
 const { mediaWidgetDimensions } = await load("mediaThemes");
+const { widgetFootprint } = await load("../desktop/layout");
 const luminance = value => value.match(/\d+/g).map(Number).reduce((sum, channel, index) => {
   const c = channel / 255;
   return sum + (c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4) * [.2126,.7152,.0722][index];
@@ -23,8 +24,11 @@ test("cover palettes ignore transparent pixels, preserve cover hues and keep whi
   }
 });
 test("only the medium cover card uses a portrait native footprint", () => {
-  assert.deepEqual(mediaWidgetDimensions("medium","atmosphere"), {width:170,height:364});
+  assert.deepEqual(mediaWidgetDimensions("medium","atmosphere"), {width:224,height:356});
   for (const theme of ["default","vinyl","minimal"]) assert.deepEqual(mediaWidgetDimensions("medium",theme),{width:364,height:170});
   assert.deepEqual(mediaWidgetDimensions("small","atmosphere"),{width:170,height:170});
   assert.deepEqual(mediaWidgetDimensions("large","atmosphere"),{width:364,height:384});
+  for (const size of ["small","medium","large"]) for (const theme of ["default","atmosphere","vinyl","minimal"]) {
+    assert.deepEqual(widgetFootprint("media",size,theme),mediaWidgetDimensions(size,theme));
+  }
 });

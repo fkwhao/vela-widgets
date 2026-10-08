@@ -21,6 +21,16 @@ export interface MediaSnapshot {
   session: MediaSession | null;
   error: string | null;
 }
+export interface MediaSpectrum {
+  revision: number;
+  sessionId: string | null;
+  status: 'disabled' | 'ready' | 'unavailable';
+  bands: number[];
+}
+export function mediaSpectrumBands(spectrum: MediaSpectrum | undefined, session: MediaSession): number[] {
+  if (!spectrum || spectrum.status !== 'ready' || spectrum.sessionId !== session.id || session.playbackStatus !== 'playing') return [0,0,0,0];
+  return Array.from({length:4}, (_,i) => Number.isFinite(spectrum.bands[i]) ? Math.max(0,Math.min(1,spectrum.bands[i])) : 0);
+}
 export type MediaActionName = "play" | "pause" | "previous" | "next" | "seek" | "volume" | "mute";
 export interface MediaAction { sessionId: string; action: MediaActionName; positionMs?: number; volumeLevel?: number; muted?: boolean }
 

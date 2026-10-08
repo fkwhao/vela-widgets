@@ -1,17 +1,29 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from "vue";
+import { nextTick, onUnmounted, ref, watch } from "vue";
 import DOMPurify from "dompurify";
-import { markdown } from "../markdown";
+import { renderNoteMarkdown } from "../markdown";
 import { openNoteLink } from "../../../infrastructure/backend";
-import "katex/dist/katex.min.css";
 const props = defineProps<{ text: string; noteId: number }>();
 const root = ref<HTMLElement | null>(null);
 const error = ref("");
-const html = computed(() => DOMPurify.sanitize(markdown.render(props.text, { noteId: `note-${props.noteId}` }), { ADD_ATTR: ["data-mermaid", "data-image-url", "data-image-alt"], FORBID_TAGS: ["img", "style", "iframe", "form"] }));
+const html = ref('');
 let revision = 0;
 let stopped = false;
-watch(html, async () => {
+watch(() => [props.text, props.noteId] as const, async ([text, noteId]) => {
   const current = ++revision;
+  error.value = '';
+  try {
+    const rendered = await renderNoteMarkdown(text, `note-${noteId}`);
+    if (stopped || current !== revision) return;
+    if (rendered.includes('class="katex')) await import('katex/dist/katex.min.css');
+    if (stopped || current !== revision) return;
+    html.value = DOMPurify.sanitize(rendered, { ADD_ATTR: ['data-mermaid','data-image-url','data-image-alt'], FORBID_TAGS: ['img','style','iframe','form'] });
+  } catch {
+    if (stopped || current !== revision) return;
+    html.value = '';
+    error.value = '便签预览加载失败，请重试。';
+    return;
+  }
   await nextTick();
   const diagrams = Array.from(root.value?.querySelectorAll<HTMLElement>("[data-mermaid]") ?? []);
   if (!diagrams.length) return;
@@ -48,4 +60,4 @@ async function click(event: MouseEvent) {
   try { await openNoteLink(href); error.value = ""; } catch { error.value = "链接未能打开。"; }
 }
 </script>
-<template><div ref="root" class="note-markdown" @click="click"><div v-html="html"></div><p v-if="error" role="alert">{{ error }}</p></div></template>
+<template><div ref="root" class="note-markdown" @click="click"><div v-html="html"></div><template v-if="error"><p role="alert">{{ error }}</p><pre>{{ text }}</pre></template></div></template>

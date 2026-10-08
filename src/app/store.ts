@@ -78,7 +78,7 @@ export async function deleteTodo(id: number): Promise<void> {
 }
 
 export async function saveWidgetPosition(kind: WidgetKind, position: { x: number; y: number }): Promise<void> {
-  await backend.saveWidgetPosition(kind, position);
+  applySnapshot(await backend.saveWidgetPosition(kind, position));
 }
 
 export async function setClockSettings(clock: import("../shared/types").ClockSettings): Promise<void> { applySnapshot(await backend.setClockSettings(clock)); }

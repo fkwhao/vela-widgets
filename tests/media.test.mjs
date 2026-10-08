@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 const source = readFileSync(new URL("../src/features/media/media.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
-const { mediaPosition, mediaTime, mediaSource, safeArtwork } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
+const { mediaPosition, mediaTime, mediaSource, safeArtwork, mediaSpectrumBands } = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
 const session = (overrides = {}) => ({ positionMs: 10000, durationMs: 60000, playbackStatus: "playing", updatedAt: 100000, playbackRate: 1, ...overrides });
 
 test("media progress projects from the player's timestamp, including playback rate and wake-up", () => {
@@ -36,4 +36,11 @@ test("media sources have readable names and preserve unknown player names", () =
   assert.equal(mediaSource("C:\\Apps\\msedge.exe"), "Microsoft Edge");
   assert.equal(mediaSource("Custom.Package!Player"), "Player");
   assert.equal(mediaSource("Custom.exe"), "Custom");
+});
+test('spectrum uses only live bands for the current playing session and clamps invalid values', () => {
+  const current = session({id:'current'}), spectrum = {revision:1,sessionId:'current',status:'ready',bands:[.2,.5,.8,1]};
+  assert.deepEqual(mediaSpectrumBands(spectrum,current),spectrum.bands);
+  for (const invalid of [undefined,{...spectrum,sessionId:'previous'},{...spectrum,status:'disabled'},{...spectrum,status:'unavailable'}]) assert.deepEqual(mediaSpectrumBands(invalid,current),[0,0,0,0]);
+  assert.deepEqual(mediaSpectrumBands(spectrum,{...current,playbackStatus:'paused'}),[0,0,0,0]);
+  assert.deepEqual(mediaSpectrumBands({...spectrum,bands:[NaN,Infinity,-2,2]},current),[0,0,0,1]);
 });

@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emitTo } from "@tauri-apps/api/event";
 import WidgetFrame from "../../../shared/widgets/WidgetFrame.vue";
 import WidgetPageControls from "../../../shared/widgets/WidgetPageControls.vue";
-import NoteMarkdown from "./NoteMarkdown.vue";
+const NoteMarkdown = defineAsyncComponent(() => import('./NoteMarkdown.vue'));
 import AppIcon from "../../../shared/ui/AppIcon.vue";
 import { isNativeApp } from "../../../infrastructure/backend";
 import { snapshot, ready, saveNote, createNote, selectNote, deleteNote, restoreNote, refreshSnapshot } from "../../../app/store";
 import { noteTitle } from "../markdown";
 import { noteRetentionHours } from "../notes";
 import type { NoteItem } from "../../../shared/types";
+import { registerNoteFlush } from '../noteFlush';
+let unregisterFlush: (()=>void)|undefined;
 const notes = computed(() => snapshot.value.settings.note.notes);
 const active = computed(() => notes.value.find(n => n.id === snapshot.value.settings.note.activeId));
 const page = computed(() => Math.max(0, notes.value.findIndex(n => n.id === active.value?.id)));
@@ -113,16 +115,17 @@ async function addListener<T>(name: string, handler: Parameters<typeof listen<T>
   const stop = await listen<T>(name, handler); if (disposed) stop(); else unlisteners.push(stop);
 }
 onMounted(async () => {
+  unregisterFlush=registerNoteFlush(flush);
   scheduleExpiry();
   if (!isNativeApp()) return;
   await addListener<{ requestId: string }>("vela://note-flush", async ({ payload }) => {
     let ok = true; try { await flush(); } catch { ok = false; }
-    await Promise.allSettled(["manager", "context-menu", "note"].map(label => emitTo(label, "vela://note-flushed", { requestId: payload.requestId, ok })));
+    await Promise.allSettled(["manager", "context-menu", "desktop"].map(label => emitTo(label, "vela://note-flushed", { requestId: payload.requestId, ok })));
   });
   await addListener("vela://note-close-requested", async () => { try { await flush(); await invoke("set_widget_enabled", { kind: "note", enabled: false }); } catch { status.value = "未保存，点击重试"; } });
   await addListener<string>("vela://note-action", ({ payload }) => contextAction(payload));
 });
-onUnmounted(() => { disposed = true; if (timer) clearTimeout(timer); if (undoTimer) clearTimeout(undoTimer); if (expiryTimer) clearTimeout(expiryTimer); unlisteners.forEach(stop => stop()); });
+onUnmounted(() => { disposed = true; unregisterFlush?.(); if (timer) clearTimeout(timer); if (undoTimer) clearTimeout(undoTimer); if (expiryTimer) clearTimeout(expiryTimer); unlisteners.forEach(stop => stop()); });
 </script>
 <template>
   <WidgetFrame kind="note" header-only :before-close="flush"><template #default="{ widget, drag }">

@@ -4,6 +4,7 @@ import WidgetPageControls from "../../../shared/widgets/WidgetPageControls.vue";
 import { paginateTodos } from "../todoPages";
 import AppIcon from "../../../shared/ui/AppIcon.vue";
 import WidgetSizeMenuRow from "../../../shared/widgets/WidgetSizeMenuRow.vue";
+import { useContextMenu } from "../../../shared/composables/useContextMenu";
 import VelaDatePicker from "../../../shared/ui/VelaDatePicker.vue";
 import {
   DropdownMenuContent,
@@ -26,6 +27,7 @@ import {
   snapshot,
   updateTodo,
 } from "../../../app/store";
+import { useDesktopCanvas } from '../../../features/desktop/context';
 import { useWindowBounds } from "../../../shared/composables/useWindowBounds";
 import type { TodoItem, WidgetSize } from "../../../shared/types";
 
@@ -38,7 +40,7 @@ const editingId = ref<number | null>(null);
 const savingEditId = ref<number | null>(null);
 const editTitle = ref("");
 const editDueDate = ref("");
-const menu = ref<{ x: number; y: number } | null>(null);
+const { menu, menuElement, placeMenu } = useContextMenu();
 const notice = ref("");
 const justAdded = ref(false);
 const adding = ref(false);
@@ -53,7 +55,8 @@ const visibleTodos = computed(() => (filter.value === "open" ? openTodos.value :
 const activeCount = computed(() => openTodos.value.length);
 const widget = computed(() => snapshot.value.settings.widgets.todo);
 const size = computed(() => widget.value.size);
-const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
+const canvas = useDesktopCanvas();
+const dragRegion = computed(() => (canvas || widget.value.locked ? undefined : "deep"));
 const page = ref(0);
 const pageDirection = ref(1);
 const pageSource = computed(() => size.value === "large" ? visibleTodos.value : openTodos.value);
@@ -66,7 +69,7 @@ watch(pages, (next) => {
 });
 function movePage(direction: number) { pageDirection.value = direction; page.value = Math.max(0, Math.min(pages.value.length - 1, page.value + direction)); }
 // Browser previews use the same fixed footprint as native windows.
-const previewSize = computed(() => isNativeApp() ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
+const previewSize = computed(() => isNativeApp() || canvas ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
 const countCaption = computed(() => (activeCount.value === 0 ? "全部完成" : "项未完成"));
 
 function formatDueDate(value: string | null): string {
@@ -216,7 +219,7 @@ async function openContextMenu(event: MouseEvent): Promise<void> {
   }
   event.preventDefault();
   event.stopPropagation();
-  if (isNativeApp()) {
+  if (isNativeApp() && !canvas) {
     try {
       // The native popup clamps itself to the monitor, not to this small window.
       await showWidgetContextMenu("todo", event.clientX, event.clientY);
@@ -225,10 +228,7 @@ async function openContextMenu(event: MouseEvent): Promise<void> {
       // Fall through to the in-window menu.
     }
   }
-  menu.value = {
-    x: Math.max(4, Math.min(event.clientX, window.innerWidth - 192)),
-    y: Math.max(4, Math.min(event.clientY, window.innerHeight - 190)),
-  };
+  await placeMenu(event);
 }
 
 function dismissMenu(): void {
@@ -413,7 +413,7 @@ onUnmounted(() => {
 
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
-    <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
+    <Teleport to="body"><div v-if="menu" ref="menuElement" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
       <button class="context-primary" @click="openComposer"><AppIcon name="plus" :size="16" />新建待办</button>
       <div class="context-divider"></div>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
@@ -422,6 +422,6 @@ onUnmounted(() => {
       <WidgetSizeMenuRow :size="size" @choose="chooseSize" />
       <div class="context-divider"></div>
       <button class="context-danger" @click="closeWidget"><AppIcon name="close" :size="16" />关闭待办组件</button>
-    </div>
+    </div></Teleport>
   </main>
 </template>

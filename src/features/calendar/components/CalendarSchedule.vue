@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import WidgetFrame from '../../../shared/widgets/WidgetFrame.vue';
 import AppIcon from '../../../shared/ui/AppIcon.vue';
-import CalendarEventEditor from './CalendarEventEditor.vue';
+const CalendarEventEditor = defineAsyncComponent(() => import('./CalendarEventEditor.vue'));
 import { snapshot, setCalendarSettings } from '../../../app/store';
 import { calendarStyles, type CalendarEvent, type CalendarStyle } from '../../../shared/types';
 import { addDays, dateKey, dayEntries, upcomingEntries, timelineEvents, type CalendarEntry } from '../calendarEvents';

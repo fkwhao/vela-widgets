@@ -1,19 +1,42 @@
 import MarkdownIt from "markdown-it";
 import footnote from "markdown-it-footnote";
 import taskLists from "markdown-it-task-lists";
-import texmath from "markdown-it-texmath";
-import katex from "katex";
-import hljs from "highlight.js/lib/common";
+import type { HLJSApi } from 'highlight.js';
+let highlighter: HLJSApi | undefined;
+let mathReady = false;
+let mathLoading: Promise<void> | undefined;
+let highlightLoading: Promise<void> | undefined;
 
 export const markdown = new MarkdownIt({
   html: false, linkify: true, breaks: false,
   highlight(code, language) {
-    if (language && hljs.getLanguage(language)) {
-      try { return hljs.highlight(code, { language, ignoreIllegals: true }).value; } catch { /* Render unknown syntax as plain code. */ }
+    if (language && highlighter?.getLanguage(language)) {
+      try { return highlighter.highlight(code, { language, ignoreIllegals: true }).value; } catch { /* Render unknown syntax as plain code. */ }
     }
     return "";
   },
-}).use(footnote).use(taskLists).use(texmath, { engine: katex, delimiters: ["dollars", "brackets"], katexOptions: { throwOnError: false, trust: false, strict: "ignore" } });
+}).use(footnote).use(taskLists);
+
+export async function renderNoteMarkdown(text: string, noteId: string): Promise<string> {
+  const tokens = markdown.parse(text, {});
+  const needMath = tokens.some(token => token.type === 'inline' && /\$|\\[([]/.test(token.content));
+  const needHighlight = tokens.some(token => token.type === 'fence' && token.info.trim() && token.info.trim() !== 'mermaid');
+  const pending: Promise<void>[] = [];
+  if (needMath && !mathReady) {
+    mathLoading ??= Promise.all([import('markdown-it-texmath'), import('katex')]).then(([{default:texmath}, {default:katex}]) => {
+      markdown.use(texmath, {engine:katex, delimiters:['dollars','brackets'], katexOptions:{throwOnError:false,trust:false,strict:'ignore'}});
+      mathReady = true;
+    }).catch(reason => { mathLoading = undefined; throw reason; });
+    pending.push(mathLoading);
+  }
+  if (needHighlight && !highlighter) {
+    highlightLoading ??= import('highlight.js/lib/common').then(({default:hljs}) => { highlighter=hljs; })
+      .catch(reason => { highlightLoading=undefined; throw reason; });
+    pending.push(highlightLoading);
+  }
+  await Promise.all(pending);
+  return markdown.render(text, {noteId});
+}
 const defaultFence = markdown.renderer.rules.fence!;
 markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
   if (tokens[index].info.trim() === "mermaid") return `<div class="note-diagram" data-mermaid="${markdown.utils.escapeHtml(encodeURIComponent(tokens[index].content))}"><span>正在绘制图表…</span></div>`;

@@ -4,6 +4,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const UPDATED_EVENT: &str = "vela://media-updated";
+use super::media_spectrum::{self, SpectrumSnapshot};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,7 +34,7 @@ pub async fn set_media_theme(
     let mut dimensions = (364.0, 170.0);
     let mut corner_radius = 19;
     crate::update_settings(state.inner(), |settings| {
-        settings.media.theme = theme;
+        settings.media.theme = theme.clone();
         let widget = settings
             .widgets
             .get_mut("media")
@@ -44,12 +45,16 @@ pub async fn set_media_theme(
         Ok(())
     })?;
     crate::resize_widget_window(&app, "media", dimensions.0, dimensions.1, corner_radius)?;
+    let _ = app
+        .state::<MediaState>()
+        .sender
+        .send(Request::Spectrum(matches!(theme, MediaTheme::Minimal)));
     crate::publish_snapshot(&app, state.inner())
 }
 
 pub fn widget_dimensions(size: &str, theme: &MediaTheme) -> (f64, f64) {
     if size == "medium" && matches!(theme, MediaTheme::Atmosphere) {
-        (170.0, 364.0)
+        (224.0, 356.0)
     } else {
         crate::widget_dimensions(size)
     }
@@ -128,6 +133,7 @@ pub struct MediaAction {
 
 enum Request {
     Enable(bool),
+    Spectrum(bool),
     Refresh,
     Changed,
     Control(MediaAction, mpsc::Sender<Result<(), String>>),
@@ -136,6 +142,7 @@ enum Request {
 pub struct MediaState {
     sender: mpsc::Sender<Request>,
     snapshot: Arc<Mutex<MediaSnapshot>>,
+    spectrum: Arc<Mutex<SpectrumSnapshot>>,
 }
 
 fn publish(app: &AppHandle, cache: &Mutex<MediaSnapshot>, mut next: MediaSnapshot) {
@@ -143,21 +150,24 @@ fn publish(app: &AppHandle, cache: &Mutex<MediaSnapshot>, mut next: MediaSnapsho
         next.revision = current.revision + 1;
         *current = next.clone();
         // Cover data is delivered only to this widget, not to every WebView.
-        let _ = app.emit_to("media", UPDATED_EVENT, next);
+        let _ = app.emit_to("desktop", UPDATED_EVENT, next);
     }
 }
 
-pub fn start_worker(app: AppHandle, enabled: bool) {
+pub fn start_worker(app: AppHandle, enabled: bool, spectrum_enabled: bool) {
     let (sender, receiver) = mpsc::channel();
     let snapshot = Arc::new(Mutex::new(MediaSnapshot::empty("disabled")));
+    let spectrum = Arc::new(Mutex::new(SpectrumSnapshot::default()));
     app.manage(MediaState {
         sender: sender.clone(),
         snapshot: snapshot.clone(),
+        spectrum: spectrum.clone(),
     });
+    let _ = sender.send(Request::Spectrum(spectrum_enabled));
     let _ = sender.send(Request::Enable(enabled));
     std::thread::spawn(move || {
         #[cfg(target_os = "windows")]
-        native::run(app, snapshot, sender, receiver);
+        native::run(app, snapshot, spectrum, sender, receiver);
         #[cfg(not(target_os = "windows"))]
         {
             let _ = sender;
@@ -196,6 +206,15 @@ pub fn get_media_snapshot(state: State<'_, MediaState>) -> Result<MediaSnapshot,
         .lock()
         .map(|s| s.clone())
         .map_err(|_| "暂时无法读取媒体信息。".into())
+}
+
+#[tauri::command]
+pub fn get_media_spectrum(state: State<'_, MediaState>) -> Result<SpectrumSnapshot, String> {
+    state
+        .spectrum
+        .lock()
+        .map(|s| s.clone())
+        .map_err(|_| "暂时无法读取频谱。".into())
 }
 
 #[tauri::command]
@@ -375,12 +394,22 @@ mod native {
         Ok(sub)
     }
 
-    fn current_session(manager: &SessionManager) -> WinResult<Option<Session>> {
-        match manager.GetCurrentSession() {
+    fn optional_current_session(result: WinResult<Session>) -> WinResult<Option<Session>> {
+        match result {
             Ok(session) => Ok(Some(session)),
-            Err(error) if error.code() == windows::core::HRESULT(0x80004003u32 as i32) => {
-                // A null WinRT object maps to E_POINTER. Fall back only when
-                // Windows hasn't nominated a session; other failures are shown.
+            // windows-core 0.62 represents a successful null WinRT return as
+            // Error::empty() (S_OK), while some projections use E_POINTER.
+            Err(error) if error.code().0 == 0 || error.code().0 == 0x80004003u32 as i32 => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn current_session(manager: &SessionManager) -> WinResult<Option<Session>> {
+        match optional_current_session(manager.GetCurrentSession())? {
+            Some(session) => Ok(Some(session)),
+            None => {
+                // Windows hasn't nominated a current session. Prefer another
+                // playing session, or show the ordinary no-media state.
                 let sessions = manager.GetSessions()?;
                 let mut first = None;
                 for i in 0..sessions.Size()? {
@@ -394,7 +423,6 @@ mod native {
                 }
                 Ok(first)
             }
-            Err(error) => Err(error),
         }
     }
 
@@ -599,6 +627,7 @@ mod native {
     pub(super) fn run(
         app: AppHandle,
         cache: Arc<Mutex<MediaSnapshot>>,
+        spectrum_cache: Arc<Mutex<SpectrumSnapshot>>,
         sender: mpsc::Sender<Request>,
         receiver: mpsc::Receiver<Request>,
     ) {
@@ -612,15 +641,62 @@ mod native {
         let mut session: Option<SessionSubscription> = None;
         let mut audio: Option<AudioRuntime> = None;
         let mut generation = 0u64;
-        while let Ok(request) = receiver.recv() {
+        let mut spectrum_enabled = false;
+        let mut capture: Option<super::super::media_spectrum::native::Capture> = None;
+        let mut capture_target: Option<(String, u32)> = None;
+        let mut attempted_target: Option<(String, u32)> = None;
+        let mut last_attempt = std::time::Instant::now();
+        let mut last_frame = std::time::Instant::now();
+        loop {
+            if capture.is_some() && last_frame.elapsed() >= std::time::Duration::from_millis(40) {
+                let result = capture.as_mut().unwrap().poll();
+                let id = capture_target.as_ref().map(|t| t.0.as_str());
+                match result {
+                    Ok(bands) => media_spectrum::publish(&app, &spectrum_cache, id, "ready", bands),
+                    Err(_) => {
+                        capture = None;
+                        last_attempt = std::time::Instant::now();
+                        media_spectrum::publish(&app, &spectrum_cache, id, "unavailable", [0.0; 4]);
+                    }
+                }
+                last_frame = std::time::Instant::now();
+            }
+            let request = if capture.is_some() {
+                let wait =
+                    std::time::Duration::from_millis(40).saturating_sub(last_frame.elapsed());
+                match receiver.recv_timeout(wait) {
+                    Ok(request) => request,
+                    Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(_) => break,
+                }
+            } else {
+                match receiver.recv() {
+                    Ok(request) => request,
+                    Err(_) => break,
+                }
+            };
             let mut flags = 0;
             match request {
+                Request::Spectrum(on) => {
+                    spectrum_enabled = on;
+                    capture = None;
+                    capture_target = None;
+                    attempted_target = None;
+                    media_spectrum::publish(&app, &spectrum_cache, None, "disabled", [0.0; 4]);
+                    if on {
+                        flags = CURRENT | STATE;
+                    }
+                }
                 Request::Enable(on) => {
                     enabled = on;
                     if !on {
                         session = None;
                         manager = None;
                         audio = None;
+                        capture = None;
+                        capture_target = None;
+                        attempted_target = None;
+                        media_spectrum::publish(&app, &spectrum_cache, None, "disabled", [0.0; 4]);
                         publish(&app, &cache, MediaSnapshot::empty("disabled"));
                         continue;
                     }
@@ -748,8 +824,76 @@ mod native {
                 })
             })();
             match result {
-                Ok(snapshot) => publish(&app, &cache, snapshot),
+                Ok(snapshot) => {
+                    let playing = enabled
+                        && spectrum_enabled
+                        && snapshot
+                            .session
+                            .as_ref()
+                            .is_some_and(|s| s.playback_status == "playing");
+                    let id = snapshot.session.as_ref().map(|s| s.id.clone());
+                    let target = if playing {
+                        id.clone()
+                            .zip(audio.as_ref().and_then(AudioRuntime::spectrum_process_id))
+                    } else {
+                        None
+                    };
+                    publish(&app, &cache, snapshot);
+                    if target != capture_target || flags & DEVICES != 0 {
+                        capture = None;
+                        capture_target = target.clone();
+                    }
+                    if target.is_none() {
+                        attempted_target = None;
+                        let status = if playing { "unavailable" } else { "disabled" };
+                        let changed = spectrum_cache
+                            .lock()
+                            .is_ok_and(|s| s.status != status || s.session_id != id);
+                        if changed {
+                            media_spectrum::publish(
+                                &app,
+                                &spectrum_cache,
+                                id.as_deref(),
+                                status,
+                                [0.0; 4],
+                            );
+                        }
+                    } else if capture.is_none()
+                        && (attempted_target != target
+                            || flags & DEVICES != 0
+                            || last_attempt.elapsed() >= std::time::Duration::from_secs(5))
+                    {
+                        attempted_target = target.clone();
+                        last_attempt = std::time::Instant::now();
+                        match super::super::media_spectrum::native::Capture::open(
+                            target.as_ref().unwrap().1,
+                        ) {
+                            Ok(value) => {
+                                capture = Some(value);
+                                last_frame = std::time::Instant::now();
+                                media_spectrum::publish(
+                                    &app,
+                                    &spectrum_cache,
+                                    id.as_deref(),
+                                    "ready",
+                                    [0.0; 4],
+                                );
+                            }
+                            Err(_) => media_spectrum::publish(
+                                &app,
+                                &spectrum_cache,
+                                id.as_deref(),
+                                "unavailable",
+                                [0.0; 4],
+                            ),
+                        }
+                    }
+                }
                 Err(_) => {
+                    capture = None;
+                    capture_target = None;
+                    attempted_target = None;
+                    media_spectrum::publish(&app, &spectrum_cache, None, "unavailable", [0.0; 4]);
                     session = None;
                     manager = None;
                     audio = None;
@@ -762,6 +906,7 @@ mod native {
             }
         }
         // COM objects must be released before RoUninitialize.
+        drop(capture);
         drop(session);
         drop(manager);
         drop(audio);
@@ -771,6 +916,21 @@ mod native {
     #[cfg(test)]
     mod tests {
         use super::*;
+        #[test]
+        fn null_current_session_is_no_media_not_a_service_failure() {
+            let empty: WinResult<Session> =
+                unsafe { windows_core::Type::from_abi(std::ptr::null_mut()) };
+            assert!(matches!(optional_current_session(empty), Ok(None)));
+            let legacy_null =
+                windows::core::Error::from_hresult(windows::core::HRESULT(0x80004003u32 as i32));
+            assert!(matches!(
+                optional_current_session(Err(legacy_null)),
+                Ok(None)
+            ));
+            let denied =
+                windows::core::Error::from_hresult(windows::core::HRESULT(0x80070005u32 as i32));
+            assert!(optional_current_session(Err(denied)).is_err());
+        }
         #[test]
         fn artwork_accepts_only_recognized_raster_formats() {
             assert_eq!(artwork_mime(b"\x89PNG\r\n\x1a\n"), Some("image/png"));
@@ -792,7 +952,12 @@ mod native {
                 pending: Arc::new(AtomicU8::new(0)),
             };
             let manager = subscribe_manager(&signal).unwrap();
-            let _ = current_session(&manager.value).unwrap();
+            let current = current_session(&manager.value).unwrap();
+            println!("Windows media session available: {}", current.is_some());
+            if let Some(current) = current {
+                let sub = subscribe_session(current, "read-only-test".into(), &signal).unwrap();
+                let _ = read_session(&sub, None, true).unwrap();
+            }
             drop(manager);
             drop(apartment);
         }

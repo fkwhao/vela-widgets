@@ -4,6 +4,7 @@ export type ThemeMode = "light" | "dark" | "system";
 export type WidgetSize = "small" | "medium" | "large";
 export type MediaTheme = "default" | "vinyl" | "atmosphere" | "cream" | "cassette" | "minimal";
 export interface MediaSettings { theme: MediaTheme }
+export interface DesktopSettings { coordinateVersion: number; editing: boolean; alwaysOnTop: boolean; savedLayouts: import('../features/desktop/layout').SavedLayout[] }
 
 export const widgetSizeOptions: { value: WidgetSize; label: string }[] = [
   { value: "small", label: "小" },
@@ -76,6 +77,7 @@ export interface Settings {
   note: NoteSettings;
   habit: HabitSettings;
   media: MediaSettings;
+  desktop: DesktopSettings;
   widgets: Record<WidgetKind, WidgetSettings>;
 }
 
@@ -109,6 +111,7 @@ export const defaultSnapshot: AppSnapshot = {
     note: { text: "", color: "#3b67b8", notes: [{ id: 1, text: "", color: "#3b67b8", createdAt: 0, deleteAfterHours: null, retentionOverride: false }], activeId: 1, defaultDeleteAfterHours: null },
     habit: { style: "card", selectedIds: null },
     media: { theme: "default" },
+    desktop: { coordinateVersion: 1, editing: false, alwaysOnTop: false, savedLayouts: [] },
     widgets: {
       media: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 364, height: 170, size: "medium" },
       habit: { enabled: false, alwaysOnTop: false, locked: false, x: null, y: null, width: 170, height: 170, size: "small" },

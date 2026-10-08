@@ -347,6 +347,12 @@ pub fn clock_action(
 fn show_reminder(app: &AppHandle) {
     let handle = app.clone();
     let _ = app.run_on_main_thread(move || {
+        // The shared canvas renders alerts too; do not allocate another WebView.
+        if let Some(window) = handle.get_webview_window(desktop::LABEL) {
+            let _ = window.show();
+            let _ = window.set_focus();
+            return;
+        }
         if let Some(window) = handle.get_webview_window("clock-reminder") {
             let _ = window.show();
             let _ = window.set_focus();

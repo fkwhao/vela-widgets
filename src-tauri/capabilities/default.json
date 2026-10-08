@@ -4,6 +4,7 @@
   "description": "Permissions for Vela's manager and widget windows",
   "windows": [
     "manager",
+    "desktop",
     "calendar",
     "todo",
     "context-menu",

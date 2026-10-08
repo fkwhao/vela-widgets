@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { applyClockAction, tickClockTools } from "../features/clock/clockTools";
 import { normalizeNotes, nextNoteId } from "../features/notes/notes";
 import { mediaWidgetDimensions, normalizeMediaTheme } from "../features/media/mediaThemes";
+import { flushLocalNote } from '../features/notes/noteFlush';
 import { validateCalendarEvent } from "../features/calendar/calendarEvents";
 import { dateKey, tickHabitReminders, validateHabit, validateRecord } from "../features/habits/habits";
 import type { HabitItem, HabitRecordInput, HabitSettings } from "../shared/types";
@@ -10,6 +11,27 @@ import { fetchHolidayUpdate, holidayUpdateDue, mergeHolidayData, normalizeHolida
 import { defaultSnapshot, type AppSnapshot, type ThemeMode, type TodoItem, type WidgetKind, type WidgetSize, widgetKinds, type ClockSettings, type CountdownItem } from "../shared/types";
 
 const previewKey = "vela.preview.snapshot.v1";
+
+export async function setDesktopEditing(editing: boolean): Promise<AppSnapshot> {
+  if (isNativeApp()) return invoke('set_desktop_editing', { editing });
+  return updatePreview(s => { s.settings.desktop.editing=editing; });
+}
+export async function getDesktopBounds(): Promise<{width:number;height:number}> {
+  if(isNativeApp())return invoke('get_desktop_bounds');
+  return {width:innerWidth,height:innerHeight};
+}
+export async function applyDesktopLayout(placements: import('../features/desktop/layout').Placement[]): Promise<AppSnapshot> {
+  if(!placements.length)return getSnapshot();
+  if(isNativeApp())return invoke('apply_desktop_layout',{placements});
+  return updatePreview(s=>{
+    if(!placements.length || new Set(placements.map(p=>p.kind)).size!==placements.length || placements.some(p=>!widgetKinds.includes(p.kind)||!['small','medium','large'].includes(p.size)||![p.x,p.y].every(n=>Number.isFinite(n)&&n>=0)))throw '无效的桌面布局。';
+    for(const kind of widgetKinds){const widget=s.settings.widgets[kind];if(!widget.enabled)continue;const placement=placements.find(p=>p.kind===kind);if(placement&&(!widget.locked||widget.x==null||widget.y==null)){widget.x=placement.x;widget.y=placement.y;}}
+  });
+}
+export async function saveDesktopLayout(layout: import('../features/desktop/layout').SavedLayout): Promise<AppSnapshot> {
+  if(isNativeApp())return invoke('save_desktop_layout',{layout});
+  return updatePreview(s=>{if(!layout.name.trim()||layout.name.length>40||!layout.placements.length)throw '请填写布局名称。';const existing=s.settings.desktop.savedLayouts.findIndex(l=>l.name===layout.name);if(existing>=0)s.settings.desktop.savedLayouts[existing]=structuredClone(layout);else{if(s.settings.desktop.savedLayouts.length>=12)throw '最多保存12份布局。';s.settings.desktop.savedLayouts.push(structuredClone(layout));}});
+}
 
 export async function setMediaTheme(theme: import("../shared/types").MediaTheme): Promise<AppSnapshot> {
   if (normalizeMediaTheme(theme) !== theme) throw "请选择有效的播放器主题。";
@@ -84,6 +106,7 @@ function readPreview(): AppSnapshot {
           note: normalizeNotes(parsed.settings?.note ?? defaults.settings.note),
           habit: { ...defaults.settings.habit, ...parsed.settings?.habit },
           media: { theme: normalizeMediaTheme(parsed.settings?.media?.theme) },
+          desktop: { ...defaults.settings.desktop, ...parsed.settings?.desktop },
           // Merge per widget so fields added later (such as size) keep their defaults.
           widgets: Object.fromEntries(widgetKinds.map((kind) => [kind, { ...defaults.settings.widgets[kind], ...parsed.settings?.widgets?.[kind] }])) as AppSnapshot["settings"]["widgets"],
         },
@@ -126,6 +149,7 @@ export async function setWidgetEnabled(kind: WidgetKind, enabled: boolean): Prom
     if (kind === "note" && !enabled) await flushNativeNote();
     return invoke<AppSnapshot>("set_widget_enabled", { kind, enabled });
   }
+  if(kind==='note' && !enabled)await flushLocalNote();
   return updatePreview((snapshot) => {
     snapshot.settings.widgets[kind].enabled = enabled;
   });
@@ -135,6 +159,8 @@ export async function setWidgetLayer(kind: WidgetKind, alwaysOnTop: boolean): Pr
   if (isNativeApp()) return invoke<AppSnapshot>("set_widget_layer", { kind, alwaysOnTop });
   return updatePreview((snapshot) => {
     snapshot.settings.widgets[kind].alwaysOnTop = alwaysOnTop;
+    snapshot.settings.desktop.alwaysOnTop=alwaysOnTop;
+    for(const widget of Object.values(snapshot.settings.widgets))widget.alwaysOnTop=alwaysOnTop;
   });
 }
 
@@ -190,12 +216,11 @@ export async function setWidgetAppearance(
 export async function saveWidgetPosition(
   kind: WidgetKind,
   position: { x: number; y: number },
-): Promise<void> {
+): Promise<AppSnapshot> {
   if (isNativeApp()) {
-    await invoke("save_widget_position", { kind, ...position });
-    return;
+    return invoke("save_widget_position", { kind, ...position });
   }
-  updatePreview((snapshot) => {
+  return updatePreview((snapshot) => {
     Object.assign(snapshot.settings.widgets[kind], position);
   });
 }
@@ -243,8 +268,7 @@ export async function deleteTodo(id: number): Promise<AppSnapshot> {
 
 export async function openManager(page?: string): Promise<void> {
   if (isNativeApp()) {
-    await invoke("show_manager");
-    if (typeof page === "string") await emitTo("manager", "vela://navigate", page);
+    await invoke("show_manager", { page: page ?? null });
     return;
   }
   window.location.search = `?view=manager${typeof page === "string" ? `&page=${encodeURIComponent(page)}` : ''}`;
@@ -388,7 +412,7 @@ async function flushNativeNote(): Promise<void> {
       timer = setTimeout(() => reject(new Error("便签尚未保存，请稍后再试。")), 5000);
       void listen<{ requestId: string; ok: boolean }>("vela://note-flushed", ({ payload }) => {
         if (payload.requestId === requestId) payload.ok ? resolve() : reject(new Error("请先保存便签再关闭。"));
-      }).then((stop) => { unlisten = stop; return emitTo("note", "vela://note-flush", { requestId }); }).catch(reject);
+      }).then((stop) => { unlisten = stop; return emitTo("desktop", "vela://note-flush", { requestId }); }).catch(reject);
     });
   } finally { if (timer) clearTimeout(timer); unlisten?.(); }
 }

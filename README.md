@@ -4,24 +4,28 @@ Vela is a Windows desktop-widget app built as one Tauri 2 + Rust + Vue 3 + TypeS
 
 ## Current slice
 
-- A hidden-on-launch manager window that opens from a widget's right-click menu.
-- Independent calendar, to-do, clock, note, and countdown windows; first launch enables the calendar so the manager always has a desktop entry point.
+- One desktop canvas/WebView for all enabled widgets and time reminders, covering the primary monitor's work area. The preferences window is created on demand and destroyed when closed.
+- Arrangement mode supports title-handle dragging, grid/edge snapping (Alt bypasses snapping), arrow-key nudging (Shift moves 16 pixels), independent position locks and size presets.
+- Arrangement starts from the preferences window's Global Settings group; the desktop has no persistent arrangement control. If all widgets are disabled, an Open Preferences recovery entry remains.
+- Four layout templates (left, right, bottom and focus) arrange the currently enabled widgets, preserving their sizes and contents and avoiding locked cards. Placement accounts for mixed sizes and portrait covers; insufficient space reports an error without applying a partial layout. Up to 12 named layouts restore positions for currently enabled widgets and automatically place additions without toggling widget visibility.
+- Native rounded HWND regions keep empty canvas areas outside Windows hit testing in normal mode; arranging temporarily enables the full canvas. Native backdrop blur is restricted to widget rectangles. Always-on-top applies to the whole shared canvas.
+- Widget views and preferences load on demand. Plain notes load no formula or syntax-highlighting engines; those features load when needed and concurrent preview updates discard stale results. Native blur brushes, clips and visuals are reused across popover changes and widget moves; disabling blur or removing widgets releases surplus layers. The canvas does not allocate the legacy full-monitor blur visual.
 - Local SQLite storage for component preferences, notes, countdown events and to-do items, with backward-compatible settings migration.
-- Three fixed size presets for each widget, shared appearance, position locking and native context menus.
+- Three fixed size presets for each widget, shared appearance, position locking and in-canvas context menus.
 - Calendar: medium/large month navigation, offline 2026 mainland China holiday and adjusted-workday markers, independent visibility controls and optional daily updates. Manual checks are available; validated updates persist in SQLite and failures keep existing data. The public update source becomes available after publishing the holiday files to main; see [holiday data maintenance](data/holidays/README.md).
 - Clock: 12/24-hour display, optional seconds, and up to three offline world-clock cities with automatic daylight-saving offsets.
 - Notes: multiple autosaved Markdown notes in one window, titles from the first nonempty line, desktop create/delete with undo, right-click list, per-note colors and 3D vertical switching. Rendering includes tables, tasks, footnotes, code highlighting, KaTeX and Mermaid. Images load only on request; raw HTML displays as text.
 - Per-note retention defaults to never delete; optional durations start at creation time, and expired notes are removed while running or on the next launch. Existing single-note content migrates automatically.
 - Countdown: create/edit/delete events in preferences, annual recurrence and elapsed-day mode. Feb 29 recurrences use Feb 28 in non-leap years.
 - To-do and countdown use manual vertical pagination with shared arrows and page indicators; notes retain a thin scrollbar and enter editing only from the edit button.
-- Habits: local daily records with configurable weekdays, start date, daily count target, goal days, Emoji, colour and encouragement. Card, list and weekly report styles support all three sizes; the focused card switches only after reaching the day's target. The manager includes create/edit/pause/delete/reorder, monthly/weekly/yearly reports, backfill/undo and optional mood, rating and numeric results. Historical records keep their original target. Opt-in scheduled reminders reuse the native clock reminder window while the app is running; completed/rest/paused habits do not remind, and past reminders are not replayed. Preset streak milestones are calculated from records; custom rewards are not part of this slice.
+- Habits: local daily records with configurable weekdays, start date, daily count target, goal days, Emoji, colour and encouragement. Card, list and weekly report styles support all three sizes; the focused card switches only after reaching the day's target. The manager includes create/edit/pause/delete/reorder, monthly/weekly/yearly reports, backfill/undo and optional mood, rating and numeric results. Historical records keep their original target. Opt-in scheduled reminders reuse the shared canvas reminder while the app is running; completed/rest/paused habits do not remind, and past reminders are not replayed. Preset streak milestones are calculated from records; custom rewards are not part of this slice.
 - New widgets are disabled by default; enable them from preferences. Widget content works offline; holiday updates connect only when explicitly requested or enabled.
 - Now playing: an opt-in Windows SMTC widget that follows the system's current media session. Every size has progress, seeking when supported, and a player volume slider with mute; medium and large also show artist, previous/next and elapsed/total time. Core Audio volume targets only sessions with the exact source executable or package identity, including the player's output on non-default devices; unavailable or ambiguous matches disable volume without falling back to system volume. Browser media shares its browser application's mixer volume. Metadata, playback, timeline, audio-session and device updates use system events; closing the widget releases subscriptions. Covers come from the system thumbnail stream (raster formats up to 2 MiB); Vela makes no media network requests and stores no playback history. Missing covers, missing timeline, unsupported controls, no media and connection failures have explicit states. Browser preview cannot read system media.
 - Light and dark themes, with a blue accent that can be adjusted in the appearance page.
-- Now-playing themes: Classic, Cover card, Colour vinyl and Minimal strip, selectable in the now-playing preferences with previews of all three sizes. Cover card uses a portrait 170 × 364 medium window; the other medium themes use 364 × 170. Switching themes and sizes resizes the native window and keeps it on the current monitor. Cover card and vinyl sample three colours locally from the system cover, with readable white text and a fallback for missing artwork. The selection persists locally and older settings migrate to Classic. Vinyl rotation follows playback and respects reduced motion. Themes reuse SMTC metadata and controls; lyrics, listening statistics, favourites, downloads and audio spectrum data are not available.
+- Now-playing themes: Classic, Cover card, Colour vinyl and Minimal strip, selectable in the now-playing preferences with previews of all three sizes. Cover card uses a portrait 224 × 356 medium window; the other medium themes use 364 × 170. Switching themes and sizes resizes the native window and keeps it on the current monitor. Cover card and vinyl sample three colours locally from the system cover, with readable white text and a fallback for missing artwork. The selection persists locally and older settings migrate to Classic. Vinyl rotation follows playback and respects reduced motion. Themes reuse SMTC metadata and controls. Minimal uses real process-scoped WASAPI loopback spectrum (Windows build 20348+): four frequency bands from a bounded 2048-frame stereo Hann-window FFT, sent separately from metadata at up to 25 Hz. Capture runs only for an enabled minimal widget with a playing, uniquely identified audio process; pause, disable, theme/source changes and failures release capture resources. No audio is saved or sent outside the local app, and no system-wide capture or fake animation is used when unavailable. A browser audio process can include multiple tabs. Settings previews retain clearly labelled demo animation. Lyrics, listening statistics, favourites and downloads are not available.
 - In-browser preview mode with local storage when the app is run outside Tauri.
 
-The Windows login-start setting, shell-level desktop pinning, and display/DPI-aware recovery still need native implementation and validation. Widget windows request tool-window behavior and are excluded from the taskbar, but their final Alt+Tab behavior still needs manual Windows validation. Window bounds are saved in this slice, but restoring them safely after monitor or scaling changes remains unfinished.
+The Windows login-start setting, shell-level desktop pinning, and display/DPI-aware recovery still need native implementation and validation. The shared canvas requests tool-window behavior and are excluded from the taskbar, but their final Alt+Tab behavior still needs manual Windows validation. Widget positions migrate to primary-work-area coordinates and are clamped at rendering; live monitor switching and DPI recovery still need native validation.
 
 The visual system in this first slice is a starting point, not a fixed design standard. Component proportions, density, materials, and colors remain open to iteration.
 
@@ -39,9 +43,9 @@ $env:VELA_DEV_DATA_DIR = (Join-Path (Get-Location) "src-tauri\.dev-data")
 npm start
 ```
 
-`npm start` launches the native Tauri app. `npm run dev` is only a browser layout preview; it cannot create or move native desktop widget windows.
+`npm start` launches the native Tauri app. `npm run dev` is a browser preview; open `http://127.0.0.1:1420/?view=desktop` to test canvas arrangement with separate preview data. Browser tests do not verify Windows hit testing, native blur or actual WebView2 memory savings.
 
-The manager is hidden on normal launch. To show it at startup while reviewing the manager UI, set this debug-only switch first:
+The manager is created only on demand during normal launch. To show it at startup while reviewing the manager UI, set this debug-only switch first:
 
 ```powershell
 $env:VELA_SHOW_MANAGER = "1"
@@ -67,6 +71,7 @@ src/
     calendar/               Calendar widgets, editors and holiday logic
     clock/                  Clock widgets, themes and clock tools
     countdown/              Countdown widget and date calculations
+    desktop/                Shared canvas, arrangement and saved layouts
     habits/                 Habit widgets, management, reports and styles
     notes/                  Notes, Markdown rendering and retention
     media/                  Now-playing widget and runtime media session UI

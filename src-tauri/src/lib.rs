@@ -12,7 +12,7 @@ mod features;
 mod platform;
 
 use extras::{ClockSettings, CountdownItem, NoteSettings};
-use features::{clock_tools, extras, habits, holidays, media};
+use features::{clock_tools, desktop, extras, habits, holidays, media};
 #[cfg(target_os = "windows")]
 use platform::native_surface;
 const WIDGET_KINDS: [&str; 7] = [
@@ -148,6 +148,8 @@ pub struct Settings {
     pub habit: habits::HabitSettings,
     #[serde(default)]
     pub media: media::MediaSettings,
+    #[serde(default)]
+    pub desktop: desktop::DesktopSettings,
     pub widgets: HashMap<String, WidgetSettings>,
 }
 
@@ -197,6 +199,7 @@ impl Default for Settings {
             note: NoteSettings::default(),
             habit: habits::HabitSettings::default(),
             media: media::MediaSettings::default(),
+            desktop: desktop::DesktopSettings::default(),
             theme: "light".to_string(),
             accent_color: "#3b67b8".to_string(),
             widget_transparency: default_widget_transparency(),
@@ -569,8 +572,8 @@ fn supports_mica() -> bool {
     false
 }
 
-fn create_manager_window(app: &tauri::App) -> Result<(), String> {
-    let data_directory = webview_data_path(app.handle())?;
+fn create_manager_window(app: &AppHandle, page: Option<&str>) -> Result<(), String> {
+    let data_directory = webview_data_path(app)?;
     let visible = cfg!(debug_assertions)
         && std::env::var("VELA_SHOW_MANAGER")
             .map(|value| value == "1")
@@ -581,6 +584,10 @@ fn create_manager_window(app: &tauri::App) -> Result<(), String> {
     } else {
         "index.html?view=manager"
     };
+    let url = format!(
+        "{url}{}",
+        page.map(|p| format!("&page={p}")).unwrap_or_default()
+    );
     let mut builder = WebviewWindowBuilder::new(app, "manager", WebviewUrl::App(url.into()))
         .data_directory(data_directory)
         .title("Vela 偏好设置")
@@ -611,7 +618,16 @@ fn get_snapshot(state: State<'_, AppState>) -> Result<AppSnapshot, String> {
 }
 
 #[tauri::command]
-async fn show_manager(app: AppHandle) -> Result<(), String> {
+async fn show_manager(app: AppHandle, page: Option<String>) -> Result<(), String> {
+    let page = page.filter(|p| {
+        WIDGET_KINDS.contains(&p.as_str())
+            || ["home", "desktop", "appearance", "startup", "about"].contains(&p.as_str())
+    });
+    if app.get_webview_window("manager").is_none() {
+        create_manager_window(&app, page.as_deref())?;
+    } else if let Some(page) = page {
+        let _ = app.emit_to("manager", "vela://navigate", page);
+    }
     let window = app
         .get_webview_window("manager")
         .ok_or_else(|| "中控窗口尚未准备好。".to_string())?;
@@ -769,16 +785,6 @@ async fn set_widget_enabled(
     let (settings, previous_enabled) = {
         let connection = lock_database(&state)?;
         let mut settings = read_settings(&connection).map_err(|error| error.to_string())?;
-        if !enabled
-            && settings
-                .widgets
-                .values()
-                .filter(|widget| widget.enabled)
-                .count()
-                <= 1
-        {
-            return Err("至少保留一个桌面组件，才能从桌面打开 Vela 偏好设置。".to_string());
-        }
         let widget = settings
             .widgets
             .get_mut(&kind)
@@ -789,7 +795,9 @@ async fn set_widget_enabled(
         (settings, previous_enabled)
     };
 
-    let window_result = if enabled {
+    let window_result = if app.get_webview_window(desktop::LABEL).is_some() {
+        Ok(())
+    } else if enabled {
         let widget = settings.widgets.get(&kind).expect("validated widget kind");
         create_widget_window(&app, &kind, widget, &settings)
     } else if let Some(window) = app.get_webview_window(&kind) {
@@ -833,8 +841,17 @@ async fn set_widget_layer(
             .get_mut(&kind)
             .ok_or_else(|| "找不到这个组件的设置。".to_string())?;
         widget.always_on_top = always_on_top;
+        settings.desktop.always_on_top = always_on_top;
+        for widget in settings.widgets.values_mut() {
+            widget.always_on_top = always_on_top;
+        }
         Ok(())
     })?;
+    if let Some(window) = app.get_webview_window(desktop::LABEL) {
+        window
+            .set_always_on_top(always_on_top)
+            .map_err(|e| e.to_string())?;
+    }
     if let Some(window) = app.get_webview_window(&kind) {
         window
             .set_always_on_top(always_on_top)
@@ -899,6 +916,9 @@ fn resize_widget_window(
     height: f64,
     corner_radius: u8,
 ) -> Result<(), String> {
+    if app.get_webview_window(desktop::LABEL).is_some() {
+        return Ok(());
+    }
     if let Some(window) = app.get_webview_window(kind) {
         window
             .set_size(tauri::LogicalSize::new(width, height))
@@ -998,12 +1018,16 @@ async fn set_widget_appearance(
 
 #[tauri::command]
 fn save_widget_position(
+    app: AppHandle,
     state: State<'_, AppState>,
     kind: String,
     x: f64,
     y: f64,
-) -> Result<(), String> {
+) -> Result<AppSnapshot, String> {
     validate_widget(&kind)?;
+    if !x.is_finite() || !y.is_finite() || x < 0.0 || y < 0.0 || x > 100000.0 || y > 100000.0 {
+        return Err("组件位置无效。".into());
+    }
     let connection = lock_database(&state)?;
     let mut settings = read_settings(&connection).map_err(|error| error.to_string())?;
     let widget = settings
@@ -1012,7 +1036,9 @@ fn save_widget_position(
         .ok_or_else(|| "找不到这个组件的设置。".to_string())?;
     widget.x = Some(x);
     widget.y = Some(y);
-    write_settings(&connection, &settings).map_err(|error| error.to_string())
+    write_settings(&connection, &settings).map_err(|error| error.to_string())?;
+    drop(connection);
+    publish_snapshot(&app, state.inner())
 }
 
 #[tauri::command]
@@ -1120,9 +1146,25 @@ pub fn run() {
                     "failed to initialize Vela's local database: {error}"
                 ))
             })?;
-            let initial_settings = read_settings(&connection).map_err(|error| {
+            let mut initial_settings = read_settings(&connection).map_err(|error| {
                 std::io::Error::other(format!("failed to load Vela's settings: {error}"))
             })?;
+            if let Some(monitor) = app.primary_monitor()? {
+                let area = monitor.work_area();
+                let scale = monitor.scale_factor();
+                desktop::migrate(
+                    &mut initial_settings,
+                    (
+                        area.position.x as f64 / scale,
+                        area.position.y as f64 / scale,
+                    ),
+                    (
+                        area.size.width as f64 / scale,
+                        area.size.height as f64 / scale,
+                    ),
+                );
+                write_settings(&connection, &initial_settings)?;
+            }
             app.manage(AppState {
                 database: Mutex::new(connection),
                 context_menu_widget: Mutex::new(None),
@@ -1132,22 +1174,12 @@ pub fn run() {
             media::start_worker(
                 app.handle().clone(),
                 initial_settings.widgets["media"].enabled,
+                matches!(initial_settings.media.theme, media::MediaTheme::Minimal),
             );
 
-            create_manager_window(app).map_err(|error| {
-                std::io::Error::other(format!("failed to create manager window: {error}"))
-            })?;
-
-            for (kind, settings) in &initial_settings.widgets {
-                if settings.enabled {
-                    create_widget_window(app.handle(), kind, settings, &initial_settings).map_err(
-                        |error| {
-                            std::io::Error::other(format!(
-                                "failed to create {kind} widget window: {error}"
-                            ))
-                        },
-                    )?;
-                }
+            desktop::create(app.handle(), &initial_settings).map_err(std::io::Error::other)?;
+            if cfg!(debug_assertions) && std::env::var("VELA_SHOW_MANAGER").as_deref() == Ok("1") {
+                create_manager_window(app.handle(), None).map_err(std::io::Error::other)?;
             }
             extras::start_note_expiry_worker(app.handle().clone());
             holidays::start_update_worker(app.handle().clone());
@@ -1207,10 +1239,13 @@ pub fn run() {
                 }
             }
             if window.label() == "manager" {
+                if let WindowEvent::CloseRequested { .. } = event {
+                    let _ = window.emit("vela://manager-closed", ());
+                }
+            }
+            if window.label() == desktop::LABEL {
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.emit("vela://manager-closed", ());
-                    let _ = window.hide();
                 }
             }
             if window.label() == "context-menu" {
@@ -1248,7 +1283,13 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            desktop::update_desktop_regions,
+            desktop::get_desktop_bounds,
+            desktop::set_desktop_editing,
+            desktop::apply_desktop_layout,
+            desktop::save_desktop_layout,
             media::get_media_snapshot,
+            media::get_media_spectrum,
             media::refresh_media,
             media::media_action,
             media::set_media_theme,

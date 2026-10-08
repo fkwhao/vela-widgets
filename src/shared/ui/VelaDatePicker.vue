@@ -18,9 +18,10 @@ const open = ref(false);
 const compact = ref(false);
 const boundary = shallowRef<Element | undefined>();
 const pickerWidth = ref("244px");
+const pickerRoot=ref<{ $el?:HTMLElement }>();
 function setOpen(next: boolean) {
   if (next && props.variant === 'widget') {
-    boundary.value = document.querySelector('.widget-window') ?? undefined;
+    boundary.value = pickerRoot.value?.$el?.closest('.widget-window') ?? undefined;
     const bounds = boundary.value?.getBoundingClientRect();
     compact.value = (bounds?.height ?? window.innerHeight) < 240;
     pickerWidth.value = `${Math.min(compact.value ? 208 : 244, (bounds?.width ?? window.innerWidth) - 12)}px`;
@@ -39,7 +40,7 @@ function clear() { emit("update:modelValue", ""); open.value = false; }
 
 <template>
   <PopoverRoot :open="open" @update:open="setOpen">
-    <PopoverTrigger v-bind="$attrs" type="button" class="vela-date-field" :class="{ manager: variant === 'manager', empty: !modelValue }" :aria-label="`${label}：${display || '未设置'}`">
+    <PopoverTrigger ref="pickerRoot" v-bind="$attrs" type="button" class="vela-date-field" :class="{ manager: variant === 'manager', empty: !modelValue }" :aria-label="`${label}：${display || '未设置'}`">
       <span>{{ display || placeholder }}</span><AppIcon name="calendar" :size="14" />
     </PopoverTrigger>
     <PopoverPortal>

@@ -12,7 +12,7 @@ import '/src/shared/styles/widgets.css';
 import '/src/features/media/media.css';
 
 createApp({ setup() {
-  const size = ref('medium'), dark = ref(false);
+  const size = ref('medium'), dark = ref(false), transparent = ref(false);
   const session = ref(createMediaPreviewSession());
   const now = ref(Date.now());
   setInterval(() => { if (!document.hidden) now.value = Date.now(); }, 1000);
@@ -26,11 +26,12 @@ createApp({ setup() {
     if (input.action === 'volume') session.value.volume = {level: input.volumeLevel, muted: input.volumeLevel === 0};
     if (input.action === 'mute') session.value.volume = {...session.value.volume, muted: input.muted};
   }
-  return () => h('main', {class: 'theme-gallery'}, [
+  return () => h('main', {class: 'theme-gallery', style: {'--widget-background-alpha':transparent.value ? .15 : 1}}, [
     h('header', [h('p', {class:'gallery-eyebrow'},'VELA / NOW PLAYING'), h('h1','给音乐，换一种心情。'), h('p',{class:'gallery-subtitle'},'三款播放器主题 · 真实组件预览 · 封面自动取色')]),
     h('nav', {class:'gallery-toolbar', 'aria-label':'预览选项'}, [
       ...['small','medium','large'].map((value,i) => h('button',{type:'button','aria-pressed':size.value === value,onClick:() => size.value=value},['小','中','大'][i])),
       h('button',{type:'button',onClick:() => {dark.value=!dark.value;document.documentElement.dataset.theme=dark.value?'dark':'light';}},'切换深浅外观'),
+      h('button',{type:'button',onClick:() => transparent.value=!transparent.value},transparent.value?'恢复不透明背景':'模拟高透明度'),
       h('button',{type:'button',onClick:() => action({action:session.value.playbackStatus==='playing'?'pause':'play'})},session.value.playbackStatus==='playing'?'暂停动画':'播放动画'),
     ]),
     h('section',{class:`gallery-grid gallery-${size.value}`},mediaThemes.filter(theme=>theme.value!=='default').map((theme,i) => h('article', {class:theme.value==='atmosphere'?'gallery-poster':''}, [
@@ -53,7 +54,7 @@ body {overflow:auto;background:#e7e6de;}
 .gallery-toolbar button {padding:7px 12px;border:1px solid #b6bda9;border-radius:7px;background:#f7f6ed;color:#44523d;font:inherit;font-size:11px;cursor:pointer;}
 .gallery-toolbar button[aria-pressed="true"] {background:#344d37;color:#f8f4df;border-color:#344d37;}
 .gallery-grid {display:grid;grid-template-columns:repeat(2,364px);gap:30px 26px;}
-.gallery-medium {grid-template-columns:170px 364px;gap:24px 28px;}
+.gallery-medium {grid-template-columns:224px 364px;gap:24px 28px;}
 .gallery-medium .gallery-poster {grid-row:span 2;}
 .gallery-medium .gallery-poster .gallery-caption {flex-direction:column;align-items:flex-start;gap:4px;}
 .gallery-caption {display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:#334b35;}

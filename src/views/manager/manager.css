@@ -121,6 +121,8 @@
   content: "";
 }
 .nav-separator { height: 1px; flex: none; margin: 10px 10px; background: var(--win-divider); }
+.nav-group {flex:none;}
+.nav-group-label {padding:5px 14px 7px;color:var(--win-text-2);font-size:11px;line-height:16px;}
 .nav-empty { padding: 10px 14px; color: var(--win-text-2); font-size: 13px; }
 
 .manager-main {

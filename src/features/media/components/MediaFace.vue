@@ -4,8 +4,8 @@ import AppIcon from "../../../shared/ui/AppIcon.vue";
 import type { MediaTheme, WidgetSize } from "../../../shared/types";
 import { normalizeMediaTheme } from "../mediaThemes";
 import { useArtworkPalette } from "../useArtworkPalette";
-import { mediaPosition, mediaSource, mediaTime, safeArtwork, type MediaAction, type MediaSession } from "../media";
-const props = defineProps<{ session: MediaSession; size: WidgetSize; theme?: MediaTheme; now: number; busy: boolean; drag?: string }>();
+import { mediaPosition, mediaSource, mediaTime, safeArtwork, mediaSpectrumBands, type MediaAction, type MediaSession, type MediaSpectrum } from "../media";
+const props = defineProps<{ session: MediaSession; spectrum?: MediaSpectrum; size: WidgetSize; theme?: MediaTheme; now: number; busy: boolean; drag?: string }>();
 const theme = computed(() => normalizeMediaTheme(props.theme));
 const emit = defineEmits<{ action: [input: MediaAction] }>();
 const failedArtwork = ref<string | null>(null);
@@ -15,6 +15,8 @@ const palette = useArtworkPalette(paletteArtwork);
 const paletteStyle = computed(() => ({ '--media-color-1': palette.value.first, '--media-color-2': palette.value.second, '--media-color-3': palette.value.third }));
 const showSkip = computed(() => props.size !== 'small' || theme.value === 'vinyl' || theme.value === 'minimal');
 const playing = computed(() => props.session.playbackStatus === "playing");
+const bands = computed(() => mediaSpectrumBands(props.spectrum,props.session));
+const spectrumHint = computed(() => !props.spectrum ? '示例频谱动画' : !playing.value ? '播放时显示当前播放器真实频谱' : props.spectrum.status === 'ready' && props.spectrum.sessionId === props.session.id ? '当前播放器真实频谱' : '暂时无法读取当前播放器频谱');
 const position = computed(() => mediaPosition(props.session, props.now));
 const canToggle = computed(() => playing.value ? props.session.controls.pause : props.session.controls.play);
 const seeking = ref(false);
@@ -45,10 +47,10 @@ function toggleMute() {
 }
 </script>
 <template>
-  <div class="media-face" :class="[`media-${size}`, `media-theme-${theme}`, { 'is-playing': playing }]" :style="paletteStyle">
+  <div class="media-face" :class="[`media-${size}`, `media-theme-${theme}`, { 'is-playing': playing, 'spectrum-demo': !spectrum }]" :style="paletteStyle">
     <div v-if="theme === 'vinyl'" class="media-vinyl-panel" aria-hidden="true" :data-tauri-drag-region="drag"></div>
     <span v-if="theme === 'vinyl'" class="media-tonearm" aria-hidden="true" :data-tauri-drag-region="drag"></span>
-    <span v-if="theme === 'minimal'" class="media-playing-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <span v-if="theme === 'minimal'" class="media-playing-mark" :data-tooltip="spectrumHint" aria-hidden="true"><i v-for="(band,index) in bands" :key="index" :style="spectrum ? {transform:`scaleY(${.13+.87*band})`} : undefined"></i></span>
     <div class="media-artwork" :data-tauri-drag-region="drag">
       <img v-if="artwork && failedArtwork !== artwork" :src="artwork" alt="" draggable="false" @error="failedArtwork = artwork" />
       <div v-else class="media-artwork-placeholder"><span class="media-record"><AppIcon name="music" :size="size === 'large' ? 30 : 22" /></span></div>

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 import AppIcon from "../../../shared/ui/AppIcon.vue";
-import CalendarSchedule from "./CalendarSchedule.vue";
-import CalendarEventEditor from "./CalendarEventEditor.vue";
+const CalendarSchedule = defineAsyncComponent(() => import('./CalendarSchedule.vue'));
+const CalendarEventEditor = defineAsyncComponent(() => import('./CalendarEventEditor.vue'));
 import { eventsForDay } from "../calendarEvents";
 import WidgetSizeMenuRow from "../../../shared/widgets/WidgetSizeMenuRow.vue";
 import { isNativeApp, openManager, showWidgetContextMenu } from "../../../infrastructure/backend";
 import { setCalendarSettings, setWidgetEnabled, setWidgetLayer, setWidgetSize, snapshot } from "../../../app/store";
+import { useDesktopCanvas } from '../../../features/desktop/context';
 import { useWindowBounds } from "../../../shared/composables/useWindowBounds";
+import { useContextMenu } from "../../../shared/composables/useContextMenu";
 import type { CalendarEvent, WidgetSize } from "../../../shared/types";
 import { holidayLabel, visibleHoliday, isCalendarRestDay } from "../holidays";
 
@@ -20,7 +22,7 @@ interface CalendarCell {
 const today = ref(new Date());
 const visibleMonth = ref(new Date(today.value.getFullYear(), today.value.getMonth(), 1));
 const selectedDate = ref(dateKey(today.value));
-const menu = ref<{ x: number; y: number } | null>(null);
+const { menu, menuElement, placeMenu } = useContextMenu();
 const notice = ref("");
 const eventEditor = ref(false);
 const editingEvent = ref<CalendarEvent | undefined>();
@@ -48,8 +50,9 @@ function isoWeek(date: Date): number {
 const widget = computed(() => snapshot.value.settings.widgets.calendar);
 const size = computed(() => widget.value.size);
 // Medium reserves the right panel for month navigation; the today panel drags.
-const dragRegion = computed(() => (widget.value.locked ? undefined : "deep"));
-const previewSize = computed(() => isNativeApp() ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
+const canvas = useDesktopCanvas();
+const dragRegion = computed(() => (canvas || widget.value.locked ? undefined : "deep"));
+const previewSize = computed(() => isNativeApp() || canvas ? undefined : { width: `${size.value === "small" ? 170 : 364}px`, height: `${size.value === "large" ? 384 : 170}px` });
 const todayKey = computed(() => dateKey(today.value));
 const holidaySettings = computed(() => snapshot.value.settings.calendar);
 const holidayMap = computed(() => new Map(snapshot.value.holidays.data.years.flatMap(y => y.days.map(day => [day.date, day] as const))));
@@ -117,7 +120,7 @@ function goToToday(): void {
 }
 
 async function openContextMenu(event: MouseEvent): Promise<void> {
-  if (isNativeApp()) {
+  if (isNativeApp() && !canvas) {
     try {
       // The native popup clamps itself to the monitor, not to this small window.
       await showWidgetContextMenu("calendar", event.clientX, event.clientY);
@@ -126,10 +129,7 @@ async function openContextMenu(event: MouseEvent): Promise<void> {
       // Fall through to the in-window menu.
     }
   }
-  menu.value = {
-    x: Math.max(4, Math.min(event.clientX, window.innerWidth - 192)),
-    y: Math.max(4, Math.min(event.clientY, window.innerHeight - 152)),
-  };
+  await placeMenu(event);
 }
 
 function showNotice(message: string): void {
@@ -279,13 +279,13 @@ onUnmounted(() => {
     <CalendarEventEditor v-if="eventEditor" :event="editingEvent" :date="selectedDate" @close="eventEditor=false" />
     <transition name="notice"><div v-if="notice" class="widget-notice">{{ notice }}</div></transition>
 
-    <div v-if="menu" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
+    <Teleport to="body"><div v-if="menu" ref="menuElement" class="widget-context-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }" @pointerdown.stop>
       <button @click="openManager(); menu = null"><AppIcon name="sliders" :size="16" />Vela 偏好设置</button>
       <button @click="toggleLayer"><AppIcon name="arrow-up-right" :size="16" />{{ widget.alwaysOnTop ? '取消置顶' : '始终置顶' }}</button>
       <div class="context-divider"></div>
       <WidgetSizeMenuRow :size="size" @choose="chooseSize" />
       <div class="context-divider"></div>
       <button class="context-danger" @click="closeWidget"><AppIcon name="close" :size="16" />关闭日历组件</button>
-    </div>
+    </div></Teleport>
   </main>
 </template>

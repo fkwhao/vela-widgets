@@ -31,7 +31,7 @@ async function show(target: HTMLElement, ticket: number): Promise<void> {
   const wasVisible = Boolean(hint.value);
   content.value = text;
   const windowBounds = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
-  const bounds = props.manager ? windowBounds : document.querySelector(".widget-window")?.getBoundingClientRect() ?? windowBounds;
+  const bounds = props.manager ? windowBounds : target.closest('.widget-window')?.getBoundingClientRect() ?? windowBounds;
   position.value = { ...position.value, maxWidth: `${Math.min(340, bounds.right - bounds.left - 20)}px`, maxHeight: `${bounds.bottom - bounds.top - 20}px`, visibility: wasVisible ? "visible" : "hidden" };
   await nextTick();
   if (ticket !== generation || !hint.value || !target.isConnected) return;

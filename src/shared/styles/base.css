@@ -128,6 +128,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 :root[data-theme="dark"] .context-menu-window .context-divider { background: rgba(255, 255, 255, .08); }
 .widget-context-menu { position: fixed; z-index: 100; width: 188px; padding: 4px; border: 1px solid var(--widget-outline); border-radius: clamp(7px, calc(var(--widget-radius, 19px) * .52), 13px); background: rgba(247, 250, 255, .86); box-shadow: 0 12px 28px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .045); color: inherit; -webkit-backdrop-filter: blur(32px) saturate(1.35); backdrop-filter: blur(32px) saturate(1.35); }
 :root[data-theme="dark"] .widget-context-menu { background: rgba(39, 39, 39, .86); }
+.widget-context-menu { max-width: calc(100vw - 8px); max-height: calc(100vh - 8px); overflow-y: auto; }
 .widget-context-menu button { display: flex; width: 100%; height: 31px; align-items: center; gap: 8px; padding: 0 8px; color: var(--text); border: 0; border-radius: 6px; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
 .widget-context-menu svg { width: 14px; height: 14px; flex: none; }
 .widget-context-menu button:hover { background: color-mix(in srgb, var(--text) 6%, var(--surface)); }
